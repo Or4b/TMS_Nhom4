@@ -1,0 +1,540 @@
+<?php
+include 'config.php';
+
+$pageTitle = "Quản lý Nhân viên";
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $full_name = $_POST['full_name'];
+    $email = $_POST['email'];
+    $phone = $_POST['phone'];
+    $username = $_POST['username'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $salary = $_POST['salary'];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        // Insert into users table
+        $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, phone, role) VALUES (?, ?, ?, ?, ?, 'staff')");
+        $stmt->execute([$username, $password, $email, $full_name, $phone]);
+        $userId = $pdo->lastInsertId();
+        
+        // Insert into staff table (sửa lại cho phù hợp với cấu trúc database)
+        $stmt = $pdo->prepare("INSERT INTO staff (user_id, salary, hire_date) VALUES (?, ?, CURDATE())");
+        $stmt->execute([$userId, $salary]);
+        
+        $pdo->commit();
+        $_SESSION['message'] = "Thêm nhân viên thành công!";
+        header("Location: manage_staff.php");
+        exit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $_SESSION['error'] = "Lỗi khi thêm nhân viên: " . $e->getMessage();
+    }
+}
+
+// Handle actions
+if (isset($_GET['action']) && isset($_GET['id'])) {
+    $staffId = $_GET['id'];
+    
+    if ($_GET['action'] == 'delete') {
+        try {
+            $pdo->beginTransaction();
+            
+            $stmt = $pdo->prepare("SELECT user_id FROM staff WHERE id = ?");
+            $stmt->execute([$staffId]);
+            $staff = $stmt->fetch();
+            
+            if ($staff) {
+                // Xóa từ staff trước
+                $stmt = $pdo->prepare("DELETE FROM staff WHERE id = ?");
+                $stmt->execute([$staffId]);
+                
+                // Sau đó xóa từ users
+                $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                $stmt->execute([$staff['user_id']]);
+            }
+            
+            $pdo->commit();
+            $_SESSION['message'] = "Đã xóa nhân viên thành công!";
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $_SESSION['error'] = "Lỗi khi xóa nhân viên: " . $e->getMessage();
+        }
+        header("Location: manage_staff.php");
+        exit();
+    }
+    
+    // Xử lý khóa/mở tài khoản
+    if ($_GET['action'] == 'toggle_status') {
+        try {
+            $stmt = $pdo->prepare("SELECT user_id FROM staff WHERE id = ?");
+            $stmt->execute([$staffId]);
+            $staff = $stmt->fetch();
+            
+            if ($staff) {
+                // Lấy trạng thái hiện tại
+                $stmt = $pdo->prepare("SELECT status FROM users WHERE id = ?");
+                $stmt->execute([$staff['user_id']]);
+                $user = $stmt->fetch();
+                
+                $newStatus = ($user['status'] == 'active') ? 'inactive' : 'active';
+                $statusText = ($newStatus == 'active') ? 'mở khóa' : 'khóa';
+                
+                // Cập nhật trạng thái
+                $stmt = $pdo->prepare("UPDATE users SET status = ? WHERE id = ?");
+                $stmt->execute([$newStatus, $staff['user_id']]);
+                
+                $_SESSION['message'] = "Đã {$statusText} tài khoản nhân viên thành công!";
+            }
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Lỗi khi cập nhật trạng thái: " . $e->getMessage();
+        }
+        header("Location: manage_staff.php");
+        exit();
+    }
+}
+
+// Get all staff (sửa query cho phù hợp)
+$stmt = $pdo->query("SELECT s.*, u.username, u.email, u.full_name, u.phone, u.status 
+                     FROM staff s 
+                     JOIN users u ON s.user_id = u.id 
+                     ORDER BY s.id DESC");
+$staffMembers = $stmt->fetchAll();
+?>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $pageTitle; ?></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            height: 100vh;
+            position: fixed;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #34495e;
+            text-align: center;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 1rem 0;
+        }
+
+        .sidebar-menu li {
+            padding: 0.75rem 1.5rem;
+        }
+
+        .sidebar-menu li.active {
+            background: #34495e;
+            border-left: 4px solid #3498db;
+        }
+
+        .sidebar-menu a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 2rem;
+            width: calc(100% - 250px);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.3rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .staff-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .staff-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3498db;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <?php include 'sidebar.php'; ?>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="header">
+            <h1>Quản Lý Nhân Viên</h1>
+            <div class="user-menu">
+                <span>Xin chào, <?php echo $_SESSION['full_name'] ?? 'Quản trị viên'; ?></span>
+                <a href="../logout.php" class="btn btn-danger">🚪 Đăng xuất</a>
+            </div>
+        </div>
+
+        <?php if (isset($_SESSION['message'])): ?>
+            <div class="alert alert-success">
+                <?php echo $_SESSION['message']; unset($_SESSION['message']); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="alert alert-danger">
+                <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
+        <button class="btn btn-success" onclick="openAddStaffModal()" style="margin-bottom: 1rem;">+ Thêm nhân viên</button>
+
+        <div class="staff-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nhân viên</th>
+                        <th>Email</th>
+                        <th>Số điện thoại</th>
+                        <th>Lương</th>
+                        <th>Ngày vào làm</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($staffMembers)): ?>
+                        <tr>
+                            <td colspan="7" style="text-align: center;">Không có nhân viên nào</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach($staffMembers as $staff): ?>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <div class="staff-avatar">
+                                        <?php
+                                        $nameParts = explode(' ', $staff['full_name']);
+                                        $initials = '';
+                                        foreach($nameParts as $part) {
+                                            $initials .= strtoupper(substr($part, 0, 1));
+                                        }
+                                        echo substr($initials, 0, 2);
+                                        ?>
+                                    </div>
+                                    <div>
+                                        <div><strong><?php echo htmlspecialchars($staff['full_name']); ?></strong></div>
+                                        <div style="font-size: 0.8rem; color: #666;">@<?php echo htmlspecialchars($staff['username']); ?></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><?php echo htmlspecialchars($staff['email']); ?></td>
+                            <td><?php echo htmlspecialchars($staff['phone'] ?? 'N/A'); ?></td>
+                            <td><?php echo number_format($staff['salary'], 0, ',', '.'); ?>₫</td>
+                            <td><?php echo date('d/m/Y', strtotime($staff['hire_date'])); ?></td>
+                            <td>
+                                <span class="status-badge <?php echo $staff['status'] == 'active' ? 'status-active' : 'status-inactive'; ?>">
+                                    <?php echo $staff['status'] == 'active' ? 'Đang hoạt động' : 'Đã khóa'; ?>
+                                </span>
+                            </td>
+                            <td class="action-buttons">
+                                <?php if ($staff['status'] == 'active'): ?>
+                                    <a href="manage_staff.php?action=toggle_status&id=<?php echo $staff['id']; ?>" 
+                                       class="btn btn-warning btn-sm" 
+                                       onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản nhân viên này?')">Khóa</a>
+                                <?php else: ?>
+                                    <a href="manage_staff.php?action=toggle_status&id=<?php echo $staff['id']; ?>" 
+                                       class="btn btn-success btn-sm" 
+                                       onclick="return confirm('Bạn có chắc chắn muốn mở khóa tài khoản nhân viên này?')">Mở khóa</a>
+                                <?php endif; ?>
+                                <a href="manage_staff.php?action=delete&id=<?php echo $staff['id']; ?>" 
+                                   class="btn btn-danger btn-sm" 
+                                   onclick="return confirm('Bạn có chắc chắn muốn xóa nhân viên này? Hành động này không thể hoàn tác!')">Xóa</a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Staff Modal -->
+    <div class="modal" id="addStaffModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Thêm Nhân Viên Mới</h2>
+                <button class="close-btn" onclick="closeModal('addStaffModal')">&times;</button>
+            </div>
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Họ và tên *</label>
+                        <input type="text" name="full_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" name="email" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="text" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label>Tên đăng nhập *</label>
+                        <input type="text" name="username" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Mật khẩu *</label>
+                        <input type="password" name="password" value="123456" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Lương *</label>
+                        <input type="number" name="salary" step="0.01" required>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeModal('addStaffModal')">Hủy</button>
+                    <button type="submit" class="btn btn-success">Thêm Nhân viên</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openAddStaffModal() {
+            document.getElementById('addStaffModal').style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('addStaffModal');
+            if (event.target === modal) {
+                closeModal('addStaffModal');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+/* ============================
+   GIAO DIỆN KẾT QUẢ TÌM KIẾM
+   KHÔNG XUNG ĐỘT PROFILE
+   ============================ */
+.trip-search {
+    max-width: 900px;
+    margin: 40px auto;
+}
+
+/* summary */
+.trip-search .search-summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+}
+
+.trip-search .search-summary-card h2 {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.trip-search .summary-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.trip-search .tag {
+    background: #e0e7ff;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #1e3a8a;
+}
+
+.trip-search .btn-outline {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #3b82f6;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+/* Trip count */
+.trip-search .count-result {
+    margin-top: 25px;
+    font-size: 16px;
+    color: #374151;
+}
+
+/* Trip item */
+.trip-search .trip-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+    gap: 10px;
+}
+
+.trip-search .trip-card .left h3 {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.trip-search .duration {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* center */
+.trip-search .time-start {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2563eb;
+}
+
+.trip-search .time-detail {
+    font-size: 14px;
+    color: #4b5563;
+}
+
+/* right */
+.trip-search .seats.green { color: #059669; }
+.trip-search .seats.red { color: #dc2626; }
+
+.trip-search .price {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.trip-search .btn-select {
+    margin-top: 10px;
+    background: #2563eb;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    width: 100%;
+}

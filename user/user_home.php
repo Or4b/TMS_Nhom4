@@ -1,89 +1,107 @@
 <?php
-// user_home.php
+// user_home.php - SCR-1.4
+require_once 'config.php';
 session_start();
-if (!isset($_SESSION['userId'])) {
-    header('Location: login.php');
+
+// Kiểm tra đăng nhập
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
     exit;
 }
-$fullname = $_SESSION['userFullname'] ?? 'Người dùng';
+
+// Lấy thông tin User từ Session
+$full_name = $_SESSION['full_name'];
+// Tạo Avatar chữ cái đầu (Ví dụ: Nguyễn Văn A -> A)
+$parts = explode(' ', $full_name);
+$avatar_letter = substr(end($parts), 0, 1);
 ?>
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <title>Trang chủ - TMS VéXe</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang chủ - TMS VéXe</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="page-home">
-  <header class="topbar">
-    <div class="brand">TMS<span class="accent">VéXe</span></div>
-    <nav class="nav">
-      <a href="#">Trang chủ</a>
-      <a href="#">Vé của tôi</a>
-      <a href="#">Khuyến mãi</a>
-      <a href="#">Hỗ trợ</a>
-    </nav>
-    <div class="user-menu">
-      <span class="username"><?= htmlspecialchars($fullname) ?></span>
-      <div class="dropdown">
-        <a href="user_profile.php">Hồ sơ cá nhân</a>
-        <a href="#">Đổi mật khẩu</a>
-        <a href="#" id="logoutBtn">Đăng xuất</a>
-      </div>
+<body>
+
+    <header class="home-header">
+        <h2 style="margin:0; color:#1877f2;">TMS VéXe</h2>
+        <nav>
+            <a href="#" class="link" style="display:inline; margin:0 10px;">Trang chủ</a>
+            <a href="#" class="link" style="display:inline; margin:0 10px;">Vé của tôi</a>
+            <a href="#" class="link" style="display:inline; margin:0 10px;">Khuyến mãi</a>
+        </nav>
+        
+        <div class="user-menu">
+            <span>Xin chào, <strong><?= htmlspecialchars($full_name) ?></strong></span>
+            <div class="avatar"><?= $avatar_letter ?></div>
+            <div class="dropdown-content">
+                <a href="#">Hồ sơ cá nhân</a>
+                <a href="#">Đổi mật khẩu</a>
+                <a href="#" onclick="logout()">Đăng xuất</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="search-box">
+        <h3 style="text-align: center; margin-top: 0;">Tìm Chuyến Xe</h3>
+        
+        <form id="searchForm" action="search_results.php" method="GET">
+            <div class="trip-type">
+                <label style="display:inline-flex; align-items:center;">
+                    <input type="radio" name="trip_type" value="one-way" checked onchange="toggleReturnDate(false)"> Một chiều
+                </label>
+                <label style="display:inline-flex; align-items:center;">
+                    <input type="radio" name="trip_type" value="round-trip" onchange="toggleReturnDate(true)"> Khứ hồi
+                </label>
+            </div>
+
+            <div class="search-row">
+                <div class="search-col">
+                    <label>Nơi đi</label>
+                    <select name="departure_id" id="departureSelect" required>
+                        <option value="">Chọn điểm đi</option>
+                        </select>
+                </div>
+                <div class="search-col">
+                    <label>Nơi đến</label>
+                    <select name="destination_id" id="destinationSelect" required>
+                        <option value="">Chọn điểm đến</option>
+                        </select>
+                </div>
+            </div>
+
+            <div class="search-row" style="margin-top: 15px;">
+                <div class="search-col">
+                    <label>Ngày đi</label>
+                    <input type="date" name="date_go" required>
+                </div>
+                <div class="search-col" id="returnDateDiv" style="display: none;">
+                    <label>Ngày về</label>
+                    <input type="date" name="date_return">
+                </div>
+            </div>
+
+            <button type="submit" style="margin-top: 25px; background: #e74c3c; font-weight: bold;">TÌM CHUYẾN XE</button>
+        </form>
     </div>
-  </header>
 
-  <main class="container">
-    <section class="search-card">
-      <h2>Tìm Chuyến Xe</h2>
-      <div class="trip-type">
-        <label><input type="radio" name="tripType" value="oneway" checked> Một chiều</label>
-        <label><input type="radio" name="tripType" value="roundtrip"> Khứ hồi</label>
-      </div>
-      <form id="searchForm">
-        <div class="row">
-          <label>Nơi đi<input id="from" type="text" placeholder="Nhập điểm đi"></label>
-          <label>Nơi đến<input id="to" type="text" placeholder="Nhập điểm đến"></label>
+    <div style="max-width: 800px; margin: 0 auto;">
+        <h3>Thông báo</h3>
+        <div style="background: white; padding: 15px; border-radius: 8px; border-left: 5px solid #e74c3c;">
+            <strong>Chuyến xe đã bị hủy</strong><br>
+            <small>Chuyến xe Hà Nội - Đà Nẵng ngày 15/12/2025 đã bị hủy. Vui lòng kiểm tra email.</small>
         </div>
-        <div class="row">
-          <label>Ngày đi<input id="date" type="date"></label>
-          <label id="returnDateLabel" style="display:none;">Ngày về<input id="returnDate" type="date"></label>
-        </div>
-        <button class="btn primary" type="submit">Tìm chuyến xe</button>
-      </form>
-    </section>
+    </div>
 
-    <section id="notifications" class="notify">
-      <h3>Thông báo</h3>
-      <ul>
-        <li>Chuyến A123 đã bị hủy</li>
-        <li>Hoàn tiền vé #TMS20250001</li>
-      </ul>
-    </section>
-  </main>
-
-  <script src="script.js"></script>
-  <script>
-    document.getElementById('searchForm').addEventListener('submit', function(e){
-      e.preventDefault();
-      // TODO: call search API (SCR-1.7). For now just alert.
-      alert('Tìm chuyến (demo). TODO liên kết SCR-1.7.');
-    });
-    // Logout button
-    document.getElementById('logoutBtn').addEventListener('click', function(e){
-      e.preventDefault();
-      fetch('api_user.php?action=logout').then(r=>r.json()).then(j=>{
-        if (j.status === 'ok') window.location = 'login.php';
-      });
-    });
-
-    // show/hide return date
-    document.querySelectorAll('input[name="tripType"]').forEach(function(el){
-      el.addEventListener('change', function(){
-        document.getElementById('returnDateLabel').style.display = this.value === 'roundtrip' ? 'block' : 'none';
-      });
-    });
-  </script>
+    <script src="script.js"></script>
+    <script>
+        // Khi trang load xong, gọi API lấy tỉnh thành
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProvinces();
+        });
+    </script>
 </body>
 </html>

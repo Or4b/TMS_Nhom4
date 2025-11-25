@@ -1,52 +1,37 @@
-<!-- register.php -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <title>Đăng ký - TMS VéXe</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <title>Đăng ký</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="page-auth">
-  <div class="card register-card">
-    <h1 class="brand">TMS<span class="accent">VéXe</span></h1>
-    <p class="subtitle">Đăng ký tài khoản mới</p>
-
-    <form id="registerForm">
-      <label>Họ và tên
-        <input name="fullname" id="fullname" type="text" placeholder="Họ và tên">
-      </label>
-
-      <label>Địa chỉ email
-        <input name="email" id="email" type="email" placeholder="example@mail.com">
-      </label>
-
-      <label>Số điện thoại
-        <input name="phone" id="phone" type="text" placeholder="0123456789">
-      </label>
-
-      <label>Mật khẩu
-        <input name="password" id="password" type="password" placeholder="Mật khẩu">
-      </label>
-
-      <label>Xác nhận mật khẩu
-        <input name="confirm_password" id="confirm_password" type="password" placeholder="Nhập lại mật khẩu">
-      </label>
-
-      <button id="btnRegister" type="submit" class="btn primary">Đăng ký</button>
-      <p class="muted">Đã có tài khoản? <a href="login.php">Đăng nhập</a></p>
-    </form>
-
-    <div id="msg" class="message"></div>
-  </div>
-
-  <script src="script.js"></script>
-  <script>
-    // Hook form submit handled in script.js
-    document.getElementById('registerForm').addEventListener('submit', function(e){
-      e.preventDefault();
-      registerUser();
-    });
-  </script>
+<body>
+    <div class="container">
+        <h2>Đăng ký Tài khoản</h2>
+        <form onsubmit="submitAuth(event, 'register')">
+            <div class="form-group">
+                <label>Họ và tên</label>
+                <input type="text" name="fullname" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label>Số điện thoại</label>
+                <input type="text" name="phone" required>
+            </div>
+            <div class="form-group">
+                <label>Mật khẩu</label>
+                <input type="password" name="password" required>
+            </div>
+            
+            <div id="message"></div>
+            
+            <button type="submit">Đăng ký</button>
+            <a href="login.php" class="link">Đã có tài khoản? Đăng nhập</a>
+        </form>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>

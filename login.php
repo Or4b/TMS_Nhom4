@@ -5,6 +5,12 @@
   <title>Đăng nhập - TMS VéXe</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="style.css">
+  <style>
+      /* Thêm chút CSS cho thông báo để dễ nhìn */
+      .message { margin-top: 15px; padding: 10px; border-radius: 5px; display: none; text-align: center; font-size: 14px;}
+      .message.error { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+      .message.success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+  </style>
 </head>
 <body class="page-auth">
   <div class="card login-card">
@@ -38,14 +44,65 @@
     <div id="msg" class="message"></div>
   </div>
 
-  <script src="script.js"></script>
   <script>
-    document.getElementById('loginForm').addEventListener('submit', function(e){
-      e.preventDefault();
-      loginUser();
-    });
+    // 1. Xử lý ẩn hiện mật khẩu
     document.getElementById('togglePwd').addEventListener('click', function(){
-      togglePassword('loginPassword');
+      const pwdInput = document.getElementById('loginPassword');
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        this.textContent = '🙈'; // Đổi icon
+      } else {
+        pwdInput.type = 'password';
+        this.textContent = '👁';
+      }
+    });
+
+    // 2. Xử lý Gửi Form Đăng nhập bằng AJAX (Fetch API)
+    document.getElementById('loginForm').addEventListener('submit', function(e){
+      e.preventDefault(); // Ngăn form load lại trang
+      
+      const btn = document.getElementById('btnLogin');
+      const msgDiv = document.getElementById('msg');
+      const formData = new FormData(this);
+
+      // Hiệu ứng đang xử lý
+      btn.disabled = true;
+      btn.textContent = 'Đang xử lý...';
+      msgDiv.style.display = 'none';
+
+      // Gọi sang api.php
+      fetch('api.php?action=login', {
+          method: 'POST',
+          body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+          btn.disabled = false;
+          btn.textContent = 'Đăng nhập';
+
+          if (data.status === 'ok') {
+              // --- THÀNH CÔNG ---
+              msgDiv.className = 'message success';
+              msgDiv.textContent = data.message;
+              
+              // QUAN TRỌNG: Chuyển hướng dựa trên dữ liệu API trả về
+              // data.data chứa đường dẫn (admin/dashboard.php hoặc staff/dashboard.php)
+              setTimeout(() => {
+                  window.location.href = data.data; 
+              }, 1000); // Chờ 1 giây để người dùng đọc thông báo
+          } else {
+              // --- THẤT BẠI ---
+              msgDiv.className = 'message error';
+              msgDiv.textContent = data.message;
+          }
+      })
+      .catch(error => {
+          console.error('Lỗi:', error);
+          btn.disabled = false;
+          btn.textContent = 'Đăng nhập';
+          msgDiv.className = 'message error';
+          msgDiv.textContent = 'Lỗi kết nối server.';
+      });
     });
   </script>
 </body>

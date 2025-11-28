@@ -139,10 +139,7 @@ if ($conn->connect_error) {
                                         <i class="fas fa-user"></i>
                                         <span>Hồ sơ cá nhân</span>
                                     </a>
-                                    <a href="change-pass.php" class="dropdown-item">
-                                        <i class="fas fa-lock"></i>
-                                        <span>Đổi mật khẩu</span>
-                                    </a>
+                                    
                                     <a href="logout.php" class="dropdown-item logout">
                                         <i class="fas fa-sign-out-alt"></i>
                                         <span>Đăng xuất</span>

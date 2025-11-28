@@ -14,61 +14,50 @@ if (session_status() == PHP_SESSION_NONE) {
 </head>
 <body class="bg-gray-50">
 
-<header class="bg-white shadow-sm border-b">
+<header style="background: #3d4a5c;">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
 
             <!-- Logo + Menu -->
             <div class="flex items-center space-x-8">
-                <a href="index.php" class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="text-xl font-bold text-purple-700">BusTicket</div>
-                        <div class="text-xs text-gray-500">Đặt vé xe buýt trực tuyến</div>
-                    </div>
+                <a href="index.php" class="flex items-center">
+                    <div class="text-2xl font-bold text-blue-400" style="letter-spacing: 1px;">VéXe</div>
                 </a>
 
-                <nav class="hidden lg:flex space-x-8 text-gray-600 font-medium">
-                    <a href="index.php" class="hover:text-purple-600 transition pb-1 border-b-2 border-transparent hover:border-purple-600">Trang chủ</a>
-                    <a href="#" class="hover:text-purple-600 transition pb-1 border-b-2 border-transparent hover:border-purple-600">Tuyến đường</a>
-                    <a href="#" class="hover:text-purple-600 transition pb-1 border-b-2 border-transparent hover:border-purple-600">Khuyến mãi</a>
-                    <a href="#" class="hover:text-purple-600 transition pb-1 border-b-2 border-transparent hover:border-purple-600">Hỗ trợ</a>
+                <nav class="hidden lg:flex space-x-8 text-white font-medium">
+                    <a href="index.php" class="hover:text-blue-300 transition">Trang chủ</a>
+                    <a href="#" class="hover:text-blue-300 transition">Vé của tôi</a>
+                    <a href="#" class="hover:text-blue-300 transition">Khuyến mãi</a>
+                    <a href="#" class="hover:text-blue-300 transition">Hỗ trợ</a>
                 </nav>
             </div>
 
-            <!-- PHẦN USER ĐẸP NHƯ ẢNH BẠN GỬI -->
+            <!-- PHẦN USER -->
             <?php if (isset($_SESSION['user_id'])): ?>
                 <div class="relative group">
                     <!-- Click vào đây mở dropdown -->
-                    <button class="flex items-center space-x-3 text-gray-700 hover:text-purple-600 transition font-medium">
-                        <!-- Avatar tròn -->
-                        <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg shadow">
+                    <button class="flex items-center space-x-3 text-white hover:text-blue-300 transition font-medium">
+                        <!-- Avatar tròn màu xanh dương -->
+                        <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm shadow">
                             <?php
                             $name = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
                             $parts = explode(' ', trim($name));
                             $initial = '';
                             if (count($parts) >= 2) {
-                                $initial = mb_strtoupper(mb_substr(end($parts), 0, 1)) . mb_strtoupper(mb_substr(prev($parts), 0, 1));
+                                $initial = mb_strtoupper(mb_substr(end($parts), 0, 1)) . mb_strtoupper(mb_substr($parts[0], 0, 1));
                             } else {
                                 $initial = mb_strtoupper(mb_substr($name, 0, 2));
                             }
                             echo $initial ?: 'NA';
                             ?>
                         </div>
-                        <div class="text-left">
-                            <div class="text-sm"><?php echo htmlspecialchars($name); ?></div>
-                            <div class="text-xs text-gray-500">Tài khoản của tôi</div>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <span class="text-sm"><?php echo htmlspecialchars($name); ?></span>
+                        <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
 
-                    <!-- Dropdown menu - giống hệt ảnh bạn gửi -->
+                    <!-- Dropdown menu -->
                     <div class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <div class="py-2">
                             <a href="profile.php" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition">
@@ -88,15 +77,9 @@ if (session_status() == PHP_SESSION_NONE) {
                     </div>
                 </div>
 
-                <!-- Nút Vé của tôi vẫn giữ nguyên -->
-                <a href="my-tickets.php" class="ml-6 bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-200 transition flex items-center gap-2 font-medium">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    Vé của tôi
-                </a>
-
             <?php else: ?>
                 <div class="flex items-center space-x-4">
-                    <a href="login.php" class="text-purple-600 font-medium hover:underline">Đăng nhập</a>
+                    <a href="login.php" class="text-white font-medium hover:text-blue-300">Đăng nhập</a>
                     <a href="register.php" class="bg-purple-600 text-white px-6 py-2.5 rounded-lg hover:bg-purple-700 transition font-medium">Đăng ký</a>
                 </div>
             <?php endif; ?>

@@ -68,21 +68,46 @@ if ($_POST && isset($_POST['change_password'])) {
 ?>
 
 <style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f7fa;
+}
+
 .profile-page {
     background: #f5f7fa;
     min-height: calc(100vh - 80px);
+    padding: 40px 20px;
 }
+
 .profile-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 40px 20px;
 }
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 30px;
+}
+
 .profile-left-card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     overflow: hidden;
 }
+
+.profile-header {
+    padding: 40px 30px 30px;
+    text-align: center;
+}
+
 .profile-avatar {
     width: 150px;
     height: 150px;
@@ -96,11 +121,24 @@ if ($_POST && isset($_POST['change_password'])) {
     font-weight: bold;
     margin: 0 auto 20px;
 }
+
+.profile-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+}
+
+.profile-email {
+    font-size: 14px;
+    color: #6b7280;
+}
+
 .profile-stats {
     border-top: 1px solid #e5e7eb;
-    padding-top: 24px;
-    margin-top: 24px;
+    padding: 24px 30px;
 }
+
 .stat-row {
     display: flex;
     justify-content: space-between;
@@ -108,27 +146,49 @@ if ($_POST && isset($_POST['change_password'])) {
     margin-bottom: 16px;
     font-size: 15px;
 }
+
+.stat-row:last-child {
+    margin-bottom: 0;
+}
+
 .stat-label {
     color: #6b7280;
 }
+
 .stat-value {
     font-weight: 600;
     color: #111827;
 }
+
 .stat-value.orange {
     color: #f97316;
 }
+
+.password-change-section {
+    border-top: 1px solid #e5e7eb;
+    padding: 30px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 20px;
+}
+
 .profile-right-card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     overflow: hidden;
 }
+
 .tab-nav {
     display: flex;
     border-bottom: 1px solid #e5e7eb;
     padding: 0 32px;
 }
+
 .tab-link {
     padding: 20px 24px;
     font-size: 16px;
@@ -139,25 +199,31 @@ if ($_POST && isset($_POST['change_password'])) {
     margin-bottom: -1px;
     transition: all 0.2s;
 }
+
 .tab-link:hover {
     color: #3b82f6;
 }
+
 .tab-link.active {
     color: #3b82f6;
     border-bottom-color: #3b82f6;
 }
+
 .tab-content {
     padding: 40px;
 }
+
 .form-title {
     font-size: 24px;
     font-weight: 700;
     color: #111827;
     margin-bottom: 32px;
 }
+
 .form-group {
     margin-bottom: 24px;
 }
+
 .form-label {
     display: block;
     font-size: 14px;
@@ -165,6 +231,7 @@ if ($_POST && isset($_POST['change_password'])) {
     color: #374151;
     margin-bottom: 8px;
 }
+
 .form-input, .form-select {
     width: 100%;
     padding: 12px 16px;
@@ -173,19 +240,24 @@ if ($_POST && isset($_POST['change_password'])) {
     border-radius: 8px;
     outline: none;
     transition: all 0.2s;
+    font-family: inherit;
 }
+
 .form-input:focus, .form-select:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+
 .form-input::placeholder {
     color: #9ca3af;
 }
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
 }
+
 .btn-primary {
     background: #3b82f6;
     color: white;
@@ -196,52 +268,107 @@ if ($_POST && isset($_POST['change_password'])) {
     border: none;
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
 }
+
 .btn-primary:hover {
     background: #2563eb;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
+
 .alert {
     padding: 14px 18px;
     border-radius: 8px;
     margin-bottom: 24px;
     font-size: 14px;
 }
+
 .alert-success {
     background: #ecfdf5;
     color: #065f46;
     border: 1px solid #a7f3d0;
 }
+
 .alert-error {
     background: #fef2f2;
     color: #991b1b;
     border: 1px solid #fecaca;
 }
+
 .password-requirements {
     background: #f9fafb;
-    padding: 16px 20px;
-    border-radius: 8px;
-    margin: 24px 0;
+    padding: 12px 14px;
+    border-radius: 6px;
+    margin-bottom: 20px;
 }
+
 .requirement-item {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
-    font-size: 14px;
+    margin-bottom: 6px;
+    font-size: 12px;
     color: #4b5563;
 }
+
 .requirement-item:last-child {
     margin-bottom: 0;
 }
+
 .check-icon {
     color: #10b981;
     font-weight: bold;
     margin-right: 8px;
-    font-size: 16px;
+    font-size: 14px;
+}
+
+/* Password form trong left card */
+.password-form-group {
+    margin-bottom: 20px;
+}
+
+.password-form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.password-form-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.password-form-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.password-alert {
+    font-size: 13px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+}
+
+.btn-submit-password {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
 }
 
 @media (max-width: 1024px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+    
     .form-row {
         grid-template-columns: 1fr;
     }
@@ -252,49 +379,39 @@ if ($_POST && isset($_POST['change_password'])) {
     <div class="profile-container">
         
         <?php if ($current_tab === 'info'): ?>
-        <!-- TAB THÔNG TIN CÁ NHÂN - Layout 2 cột -->
-        <div style="display: grid; grid-template-columns: 350px 1fr; gap: 30px;">
+        <!-- TAB THÔNG TIN CÁ NHÂN -->
+        <div class="profile-grid">
             <!-- Cột trái -->
             <div class="profile-left-card">
-                <div style="padding: 40px 30px; text-align: center;">
+                <div class="profile-header">
                     <div class="profile-avatar"><?= $initials ?></div>
-                    <h2 style="font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px;">
-                        <?= htmlspecialchars($name) ?>
-                    </h2>
-                    <p style="font-size: 14px; color: #6b7280;">
-                        <?= htmlspecialchars($user['email']) ?>
-                    </p>
+                    <h2 class="profile-name"><?= htmlspecialchars($name) ?></h2>
+                    <p class="profile-email"><?= htmlspecialchars($user['email']) ?></p>
+                </div>
 
-                    <div class="profile-stats">
-                        <div class="stat-row">
-                            <span class="stat-label">Tổng chuyến đi:</span>
-                            <span class="stat-value">12</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Vé đang chờ:</span>
-                            <span class="stat-value orange">2</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Thành viên từ:</span>
-                            <span class="stat-value">15/08/2025</span>
-                        </div>
+                <div class="profile-stats">
+                    <div class="stat-row">
+                        <span class="stat-label">Tổng chuyến đi:</span>
+                        <span class="stat-value">12</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Vé đang chờ:</span>
+                        <span class="stat-value orange">2</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Thành viên từ:</span>
+                        <span class="stat-value">15/08/2025</span>
                     </div>
                 </div>
             </div>
 
             <!-- Cột phải -->
             <div class="profile-right-card">
-                <!-- Tab Navigation -->
                 <div class="tab-nav">
-                    <a href="?tab=info" class="tab-link active">
-                        Thông tin cá nhân
-                    </a>
-                    <a href="?tab=password" class="tab-link">
-                        Đổi mật khẩu
-                    </a>
+                    <a href="?tab=info" class="tab-link active">Thông tin cá nhân</a>
+                    <a href="?tab=password" class="tab-link">Đổi mật khẩu</a>
                 </div>
 
-                <!-- Form Content -->
                 <div class="tab-content">
                     <h3 class="form-title">Thông tin cá nhân</h3>
 
@@ -349,115 +466,97 @@ if ($_POST && isset($_POST['change_password'])) {
         </div>
 
         <?php else: ?>
-        <!-- TAB ĐỔI MẬT KHẨU - Form nằm dưới stats trong cột trái -->
-        <div style="display: grid; grid-template-columns: 350px 1fr; gap: 30px;">
-            <!-- Cột trái - Profile Card + Form Đổi Mật Khẩu -->
-            <div>
-                <!-- Profile Info -->
-                <div class="profile-left-card" style="margin-bottom: 0;">
-                    <div style="padding: 40px 30px 30px; text-align: center;">
-                        <div class="profile-avatar"><?= $initials ?></div>
-                        <h2 style="font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px;">
-                            <?= htmlspecialchars($name) ?>
-                        </h2>
-                        <p style="font-size: 14px; color: #6b7280;">
-                            <?= htmlspecialchars($user['email']) ?>
-                        </p>
+        <!-- TAB ĐỔI MẬT KHẨU -->
+        <div class="profile-grid">
+            <!-- Cột trái -->
+            <div class="profile-left-card">
+                <div class="profile-header">
+                    <div class="profile-avatar"><?= $initials ?></div>
+                    <h2 class="profile-name"><?= htmlspecialchars($name) ?></h2>
+                    <p class="profile-email"><?= htmlspecialchars($user['email']) ?></p>
+                </div>
 
-                        <div class="profile-stats">
-                            <div class="stat-row">
-                                <span class="stat-label">Tổng chuyến đi:</span>
-                                <span class="stat-value">12</span>
+                <div class="profile-stats">
+                    <div class="stat-row">
+                        <span class="stat-label">Tổng chuyến đi:</span>
+                        <span class="stat-value">12</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Vé đang chờ:</span>
+                        <span class="stat-value orange">2</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Thành viên từ:</span>
+                        <span class="stat-value">15/08/2025</span>
+                    </div>
+                </div>
+
+                <!-- Form Đổi Mật Khẩu -->
+                <div class="password-change-section">
+                    <h3 class="section-title">Đổi Mật Khẩu</h3>
+
+                    <?php if(isset($pass_error)): ?>
+                    <div class="alert alert-error password-alert"><?= $pass_error ?></div>
+                    <?php endif; ?>
+                    
+                    <?php if(isset($pass_success)): ?>
+                    <div class="alert alert-success password-alert"><?= $pass_success ?></div>
+                    <?php endif; ?>
+
+                    <form method="post">
+                        <input type="hidden" name="change_password" value="1">
+
+                        <div class="password-form-group">
+                            <label class="password-form-label">Mật khẩu hiện tại</label>
+                            <input type="password" name="current_password" class="password-form-input"
+                                placeholder="Nhập mật khẩu hiện tại" required>
+                        </div>
+
+                        <div class="password-form-group">
+                            <label class="password-form-label">Mật khẩu mới</label>
+                            <input type="password" name="new_password" class="password-form-input"
+                                placeholder="Nhập mật khẩu mới" required>
+                        </div>
+
+                        <div class="password-requirements">
+                            <div class="requirement-item">
+                                <span class="check-icon">✓</span>
+                                Ít nhất 8 ký tự
                             </div>
-                            <div class="stat-row">
-                                <span class="stat-label">Vé đang chờ:</span>
-                                <span class="stat-value orange">2</span>
+                            <div class="requirement-item">
+                                <span class="check-icon">✓</span>
+                                Chữ hoa và chữ thường
                             </div>
-                            <div class="stat-row" style="margin-bottom: 0;">
-                                <span class="stat-label">Thành viên từ:</span>
-                                <span class="stat-value">15/08/2025</span>
+                            <div class="requirement-item">
+                                <span class="check-icon">✓</span>
+                                Ít nhất 1 số
+                            </div>
+                            <div class="requirement-item">
+                                <span class="check-icon">✓</span>
+                                Ít nhất 1 ký tự đặc biệt
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Form Đổi Mật Khẩu ngay trong card -->
-                    <div style="padding: 30px; border-top: 1px solid #e5e7eb;">
-                        <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 24px;">Đổi Mật Khẩu</h3>
 
-                        <?php if(isset($pass_error)): ?>
-                        <div class="alert alert-error" style="font-size: 13px; padding: 10px 12px; margin-bottom: 16px;"><?= $pass_error ?></div>
-                        <?php endif; ?>
-                        
-                        <?php if(isset($pass_success)): ?>
-                        <div class="alert alert-success" style="font-size: 13px; padding: 10px 12px; margin-bottom: 16px;"><?= $pass_success ?></div>
-                        <?php endif; ?>
+                        <div class="password-form-group">
+                            <label class="password-form-label">Xác nhận mật khẩu mới</label>
+                            <input type="password" name="confirm_password" class="password-form-input"
+                                placeholder="Nhập lại mật khẩu mới" required>
+                        </div>
 
-                        <form method="post">
-                            <input type="hidden" name="change_password" value="1">
-
-                            <div style="margin-bottom: 20px;">
-                                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Mật khẩu hiện tại</label>
-                                <input type="password" name="current_password" class="form-input" style="padding: 10px 12px; font-size: 14px;"
-                                    placeholder="Nhập mật khẩu hiện tại" required>
-                            </div>
-
-                            <div style="margin-bottom: 20px;">
-                                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Mật khẩu mới</label>
-                                <input type="password" name="new_password" class="form-input" style="padding: 10px 12px; font-size: 14px;"
-                                    placeholder="Nhập mật khẩu mới" required>
-                            </div>
-
-                            <!-- Password Requirements -->
-                            <div style="background: #f9fafb; padding: 12px 14px; border-radius: 6px; margin-bottom: 20px;">
-                                <div class="requirement-item" style="margin-bottom: 6px; font-size: 12px;">
-                                    <span class="check-icon" style="font-size: 14px;">✓</span>
-                                    Ít nhất 8 ký tự
-                                </div>
-                                <div class="requirement-item" style="margin-bottom: 6px; font-size: 12px;">
-                                    <span class="check-icon" style="font-size: 14px;">✓</span>
-                                    Chữ hoa và chữ thường
-                                </div>
-                                <div class="requirement-item" style="margin-bottom: 6px; font-size: 12px;">
-                                    <span class="check-icon" style="font-size: 14px;">✓</span>
-                                    Ít nhất 1 số
-                                </div>
-                                <div class="requirement-item" style="margin-bottom: 0; font-size: 12px;">
-                                    <span class="check-icon" style="font-size: 14px;">✓</span>
-                                    Ít nhất 1 ký tự đặc biệt
-                                </div>
-                            </div>
-
-                            <div style="margin-bottom: 24px;">
-                                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Xác nhận mật khẩu mới</label>
-                                <input type="password" name="confirm_password" class="form-input" style="padding: 10px 12px; font-size: 14px;"
-                                    placeholder="Nhập lại mật khẩu mới" required>
-                            </div>
-
-                            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-size: 15px;">
-                                Đổi mật khẩu
-                            </button>
-                        </form>
-                    </div>
+                        <button type="submit" class="btn-primary btn-submit-password">Đổi mật khẩu</button>
+                    </form>
                 </div>
             </div>
 
-            <!-- Cột phải - Tab Navigation với nút -->
+            <!-- Cột phải -->
             <div class="profile-right-card">
-                <!-- Tab Navigation -->
                 <div class="tab-nav">
-                    <a href="?tab=info" class="tab-link">
-                        Thông tin cá nhân
-                    </a>
-                    <a href="?tab=password" class="tab-link active">
-                        Đổi mật khẩu
-                    </a>
+                    <a href="?tab=info" class="tab-link">Thông tin cá nhân</a>
+                    <a href="?tab=password" class="tab-link active">Đổi mật khẩu</a>
                 </div>
                 
-                <!-- Nút Cập nhật thông tin -->
-                <div style="padding: 40px;">
-                    <a href="?tab=info" class="btn-primary" style="display: inline-block; text-decoration: none;">
-                        Cập nhật thông tin
-                    </a>
+                <div class="tab-content">
+                    <a href="?tab=info" class="btn-primary">Cập nhật thông tin</a>
                 </div>
             </div>
         </div>

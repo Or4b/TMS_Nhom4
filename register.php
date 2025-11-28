@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Đăng ký - TMS VéXe</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="page-auth">
   <div class="card register-card">
@@ -40,14 +40,20 @@
       <p class="muted">Đã có tài khoản? <a href="login.php">Đăng nhập</a></p>
     </form>
 
-    <div id="msg" class="message"></div>
+    <div id="msg" class="message" style="color: red; text-align: center; margin-top: 10px;"></div>
   </div>
 
-  <script src="script.js"></script>
+  <script src="js/script.js"></script> 
+  
   <script>
     document.getElementById('registerForm').addEventListener('submit', function(e){
       e.preventDefault();
-      registerUser();
+      // Hàm registerUser nằm trong js/script.js
+      if(typeof registerUser === 'function') {
+          registerUser();
+      } else {
+          alert('Lỗi: Không tìm thấy file js/script.js');
+      }
     });
   </script>
 </body>

@@ -1,6 +1,5 @@
 <?php
-include '../config.php';
-
+require_once dirname(__DIR__) . '/includes/config.php';
 $pageTitle = "Quản lý Chuyến đi";
 
 // --- XỬ LÝ 1: THÊM CHUYẾN ĐI MỚI ---
@@ -16,10 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_trip'])) {
     $available_seats = $total_seats;
 
     try {
-        // Mặc định thêm mới là 'scheduled' (Đang mở vé)
-        // FIX: ticket_type trong DB là 'one_way'/'round_trip' (underscore) nhưng form gửi lên là dash (-).
-        // Tuy nhiên ở đây ta cứ lưu theo form gửi lên, nhưng tốt nhất nên chuẩn hóa.
-        // Để an toàn với DB mới sửa, ta map lại giá trị:
+        // Chuẩn hóa ticket_type cho khớp DB (one_way / round_trip)
         $db_ticket_type = ($ticket_type == 'round-trip') ? 'round_trip' : 'one_way';
 
         $sql = "INSERT INTO trips (departure_province_id, destination_province_id, departure_time, price, available_seats, total_seats, ticket_type, return_time, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')";
@@ -45,8 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_trip'])) {
     $ticket_type = $_POST['ticket_type'];
 
     $return_time = ($ticket_type == 'round-trip' && !empty($_POST['return_time'])) ? $_POST['return_time'] : null;
-    
-    // Map lại ticket type cho chuẩn DB
     $db_ticket_type = ($ticket_type == 'round-trip') ? 'round_trip' : 'one_way';
 
     try {
@@ -73,35 +67,71 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_trip'])) {
 if (isset($_GET['action']) && isset($_GET['id'])) {
     $tripId = $_GET['id'];
 
-    // --- ĐOẠN CODE NÀY THAY THẾ CHO PHẦN IF DELETE CŨ ---
+    // --- 3.1 XỬ LÝ UPDATE STATUS (MỞ VÉ / TẠM DỪNG) ---
+    // Đây là phần bạn bị thiếu ở code cũ
+    if ($_GET['action'] == 'update_status' && isset($_GET['status'])) {
+        $new_status = $_GET['status']; // 'scheduled' hoặc 'paused'
+        try {
+            $stmt = $pdo->prepare("UPDATE trips SET status = ? WHERE id = ?");
+            $stmt->execute([$new_status, $tripId]);
+            
+            $msg_status = ($new_status == 'scheduled') ? 'Đang mở vé' : 'Tạm dừng';
+            $_SESSION['message'] = "Đã thay đổi trạng thái thành: " . $msg_status;
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Lỗi cập nhật trạng thái: " . $e->getMessage();
+        }
+        header("Location: manage_trip.php");
+        exit();
+    }
+
+    // --- 3.2 XỬ LÝ DELETE (CƠ CHẾ 2 BƯỚC) ---
     if ($_GET['action'] == 'delete') {
         try {
-            $pdo->beginTransaction();
-
-            // 1. Chuyển tất cả vé của chuyến này sang trạng thái 'cancelled'
-            // (Giữ lại dữ liệu vé để nhân viên biết mà hoàn tiền/thông báo khách)
-            $stmt = $pdo->prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ?");
+            // Kiểm tra trạng thái hiện tại của chuyến đi
+            $stmt = $pdo->prepare("SELECT status FROM trips WHERE id = ?");
             $stmt->execute([$tripId]);
+            $currentStatus = $stmt->fetchColumn();
 
-            // 2. Chuyển trạng thái chuyến đi sang 'cancelled' (Thay vì DELETE)
-            // Việc này giúp giữ lại thông tin chuyến đi để tham chiếu trong vé của khách
-            $stmt = $pdo->prepare("UPDATE trips SET status = 'cancelled' WHERE id = ?");
-            $stmt->execute([$tripId]);
+            if ($currentStatus == 'cancelled') {
+                // BƯỚC 2: NẾU ĐÃ LÀ 'CANCELLED' -> XÓA VĨNH VIỄN
+                $pdo->beginTransaction();
+                
+                // Xóa vé liên quan trước (để tránh lỗi khóa ngoại nếu chưa set ON DELETE CASCADE)
+                $stmt = $pdo->prepare("DELETE FROM bookings WHERE trip_id = ?");
+                $stmt->execute([$tripId]);
 
-            $pdo->commit();
-            
-            $_SESSION['message'] = "Đã hủy chuyến đi! Tất cả vé đã đặt (nếu có) đã được chuyển sang trạng thái 'Đã hủy'.";
+                // Xóa chuyến đi
+                $stmt = $pdo->prepare("DELETE FROM trips WHERE id = ?");
+                $stmt->execute([$tripId]);
+                
+                $pdo->commit();
+                $_SESSION['message'] = "Đã xóa vĩnh viễn chuyến đi và dữ liệu liên quan!";
+            } else {
+                // BƯỚC 1: NẾU CHƯA HỦY -> CHUYỂN TRẠNG THÁI THÀNH 'CANCELLED'
+                $pdo->beginTransaction();
+
+                // Hủy vé của khách
+                $stmt = $pdo->prepare("UPDATE bookings SET status = 'cancelled' WHERE trip_id = ?");
+                $stmt->execute([$tripId]);
+
+                // Đổi trạng thái chuyến đi
+                $stmt = $pdo->prepare("UPDATE trips SET status = 'cancelled' WHERE id = ?");
+                $stmt->execute([$tripId]);
+
+                $pdo->commit();
+                $_SESSION['message'] = "Đã chuyển chuyến đi sang trạng thái 'Đã hủy'. Bấm xóa lần nữa để xóa vĩnh viễn.";
+            }
+
         } catch (Exception $e) {
-            $pdo->rollBack();
-            $_SESSION['error'] = "Lỗi khi xử lý hủy chuyến: " . $e->getMessage();
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $_SESSION['error'] = "Lỗi khi xử lý: " . $e->getMessage();
         }
         header("Location: manage_trip.php");
         exit();
     }
 }
 
-// Lấy tất cả chuyến đi lần 1 (để xử lý tự động)
-// FIX: Sửa dp.name -> dp.province_name và dsp.name -> dsp.province_name
+// Lấy danh sách chuyến đi
 $stmt = $pdo->query("
     SELECT t.*, 
            dp.province_name as departure_province_name, 
@@ -113,38 +143,20 @@ $stmt = $pdo->query("
 ");
 $trips = $stmt->fetchAll();
 
-// --- XỬ LÝ 4: TỰ ĐỘNG CẬP NHẬT TRẠNG THÁI ---
+// Tự động cập nhật trạng thái (Completed / Full) - Logic giữ nguyên
 foreach ($trips as $trip) {
     $current_time = date('Y-m-d H:i:s');
-    $departure_time = $trip['departure_time'];
+    // Chỉ tự động cập nhật nếu không phải là Paused hoặc Cancelled
+    if ($trip['status'] == 'paused' || $trip['status'] == 'cancelled') continue;
 
-    // --- [QUAN TRỌNG] CHỐT CHẶN BẢO VỆ ---
-    if ($trip['status'] == 'paused' || $trip['status'] == 'cancelled') {
-        continue;
-    }
-
-    // 1. Quá giờ -> Hủy (Hoặc Completed tùy logic, ở đây giữ logic cũ là Cancelled hoặc nên đổi thành Completed)
-    // Thường quá giờ khởi hành thì là Ongoing hoặc Completed chứ không phải Cancelled. 
-    // Nhưng tôi sẽ giữ nguyên logic cũ của bạn để tránh lỗi logic khác.
-    if ($current_time > $departure_time) {
-        // Tùy chọn: Đổi thành 'completed' thay vì 'cancelled' nếu muốn đúng thực tế
-        $stmt = $pdo->prepare("UPDATE trips SET status = 'completed' WHERE id = ?"); 
-        $stmt->execute([$trip['id']]);
-    }
-    // 2. Hết ghế -> Full
-    elseif ($trip['available_seats'] == 0 && $trip['status'] != 'full') {
-        $stmt = $pdo->prepare("UPDATE trips SET status = 'full' WHERE id = ?");
-        $stmt->execute([$trip['id']]);
-    }
-    // 3. Còn ghế -> Mở bán (Scheduled)
-    elseif ($trip['available_seats'] > 0 && $trip['status'] == 'full') {
-        $stmt = $pdo->prepare("UPDATE trips SET status = 'scheduled' WHERE id = ?");
-        $stmt->execute([$trip['id']]);
+    if ($current_time > $trip['departure_time'] && $trip['status'] != 'completed') {
+        $pdo->prepare("UPDATE trips SET status = 'completed' WHERE id = ?")->execute([$trip['id']]);
+    } elseif ($trip['available_seats'] == 0 && $trip['status'] != 'full' && $trip['status'] != 'completed') {
+        $pdo->prepare("UPDATE trips SET status = 'full' WHERE id = ?")->execute([$trip['id']]);
     }
 }
 
-// Lấy lại dữ liệu lần 2 (để hiển thị ra bảng sau khi đã update)
-// FIX: Sửa dp.name -> dp.province_name
+// Lấy lại danh sách sau update tự động
 $stmt = $pdo->query("
     SELECT t.*, 
            dp.province_name as departure_province_name, 
@@ -156,42 +168,29 @@ $stmt = $pdo->query("
 ");
 $trips = $stmt->fetchAll();
 
-// Lấy danh sách tỉnh cho dropdown form
-// FIX: Sửa ORDER BY name -> ORDER BY province_name
+// Lấy danh sách tỉnh
 $stmt = $pdo->query("SELECT * FROM provinces WHERE status = 'active' ORDER BY province_name");
 $provinces = $stmt->fetchAll();
 
-// Lấy thông tin chỉnh sửa (nếu có action edit)
+// Lấy thông tin chỉnh sửa
 $edit_trip = null;
 if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
-    // FIX: Sửa dp.name -> dp.province_name
-    $stmt = $pdo->prepare("
-        SELECT t.*, dp.province_name as departure_province_name, dsp.province_name as destination_province_name 
-        FROM trips t
-        JOIN provinces dp ON t.departure_province_id = dp.id
-        JOIN provinces dsp ON t.destination_province_id = dsp.id
-        WHERE t.id = ?
-    ");
+    $stmt = $pdo->prepare("SELECT * FROM trips WHERE id = ?");
     $stmt->execute([$_GET['id']]);
     $edit_trip = $stmt->fetch();
-    
-    // Chuẩn hóa lại ticket_type để hiển thị đúng trên form (đổi _ thành -)
-    if($edit_trip) {
-        $edit_trip['ticket_type'] = str_replace('_', '-', $edit_trip['ticket_type']);
-    }
+    if($edit_trip) $edit_trip['ticket_type'] = str_replace('_', '-', $edit_trip['ticket_type']);
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* GIỮ NGUYÊN CSS CŨ */
+        /* CSS CŨ GIỮ NGUYÊN */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f8f9fa; display: flex; }
         .sidebar { width: 250px; background: #2c3e50; color: white; height: 100vh; position: fixed; }
@@ -241,11 +240,14 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
         .alert { padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        /* Dropdown Menu CSS */
         .dropdown { position: relative; display: inline-block; }
-        .dropdown-content { display: none; position: absolute; background-color: white; min-width: 160px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); z-index: 1; border-radius: 6px; overflow: hidden; }
-        .dropdown-content a { color: #333; padding: 12px 16px; text-decoration: none; display: block; border-bottom: 1px solid #eee; }
-        .dropdown-content a:hover { background-color: #f8f9fa; }
+        .dropdown-content { display: none; position: absolute; background-color: white; min-width: 160px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); z-index: 100; border-radius: 6px; overflow: hidden; right: 0; border: 1px solid #eee; }
+        .dropdown-content a { color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px; text-align: left; }
+        .dropdown-content a:hover { background-color: #f1f1f1; color: #3498db; }
         .dropdown:hover .dropdown-content { display: block; }
+        
         .empty-state { text-align: center; padding: 3rem; color: #666; }
         .empty-state i { font-size: 3rem; margin-bottom: 1rem; color: #ddd; }
     </style>
@@ -318,19 +320,14 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                                         ?>
                                     </span>
                                 </td>
-                                <td>
-                                    <?php echo date('H:i d/m/Y', strtotime($trip['departure_time'])); ?>
-                                </td>
+                                <td><?php echo date('H:i d/m/Y', strtotime($trip['departure_time'])); ?></td>
                                 <td>
                                     <?php 
-                                        // Kiểm tra cả 2 trường hợp format
                                         $is_round_trip = ($trip['ticket_type'] == 'round-trip' || $trip['ticket_type'] == 'round_trip');
                                         if ($is_round_trip && $trip['return_time']): 
+                                            echo date('H:i d/m/Y', strtotime($trip['return_time'])); 
+                                        else: echo '-'; endif; 
                                     ?>
-                                        <?php echo date('H:i d/m/Y', strtotime($trip['return_time'])); ?>
-                                    <?php else: ?>
-                                        -
-                                    <?php endif; ?>
                                 </td>
                                 <td><?php echo $trip['available_seats']; ?>/<?php echo $trip['total_seats']; ?></td>
                                 <td><?php echo number_format($trip['price'], 0, ',', '.'); ?>₫</td>
@@ -343,7 +340,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                                     if ($trip['status'] == 'scheduled') {
                                         $status_label = 'Đang mở vé';
                                         $css_class = 'status-scheduled';
-                                    } elseif ($trip['status'] == 'paused' || $trip['status'] == '') {
+                                    } elseif ($trip['status'] == 'paused') {
                                         $status_label = 'Tạm dừng';
                                         $css_class = 'status-paused';
                                     } elseif ($trip['status'] == 'full') {
@@ -354,39 +351,54 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                                         $css_class = 'status-cancelled';
                                     } elseif ($trip['status'] == 'completed') {
                                         $status_label = 'Hoàn thành';
-                                        $css_class = 'status-scheduled'; // Hoặc tạo class mới cho completed
+                                        $css_class = 'status-scheduled';
                                     }
                                     ?>
-
                                     <span class="status-badge <?php echo $css_class; ?>">
                                         <?php echo $status_label; ?>
                                     </span>
                                 </td>
                                 <td class="action-buttons">
-                                    <a href="manage_trip.php?action=edit&id=<?php echo $trip['id']; ?>" class="btn btn-info">
-                                        <i class="fas fa-edit"></i> Sửa
-                                    </a>
-
-                                    <div class="dropdown">
-                                        <button class="btn btn-primary">
-                                            <i class="fas fa-sync-alt"></i> Trạng thái
-                                        </button>
-                                        <div class="dropdown-content">
-                                            <a href="manage_trip.php?action=update_status&id=<?php echo $trip['id']; ?>&status=scheduled">
-                                                Mở vé bán
-                                            </a>
-
-                                            <a href="manage_trip.php?action=update_status&id=<?php echo $trip['id']; ?>&status=paused">
-                                                Tạm dừng vé
-                                            </a>
+                                    <?php if ($trip['status'] != 'cancelled' && $trip['status'] != 'completed'): ?>
+                                        <div class="dropdown">
+                                            <button class="btn btn-primary btn-sm">
+                                                <i class="fas fa-cog"></i> <i class="fas fa-caret-down"></i>
+                                            </button>
+                                            <div class="dropdown-content">
+                                                <a href="manage_trip.php?action=edit&id=<?php echo $trip['id']; ?>">
+                                                    <i class="fas fa-edit"></i> Sửa chuyến
+                                                </a>
+                                                
+                                                <?php if($trip['status'] == 'scheduled'): ?>
+                                                    <a href="manage_trip.php?action=update_status&id=<?php echo $trip['id']; ?>&status=paused">
+                                                        <i class="fas fa-pause"></i> Tạm dừng
+                                                    </a>
+                                                <?php elseif($trip['status'] == 'paused'): ?>
+                                                    <a href="manage_trip.php?action=update_status&id=<?php echo $trip['id']; ?>&status=scheduled">
+                                                        <i class="fas fa-play"></i> Mở bán lại
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
-                                    </div>
+                                    <?php else: ?>
+                                        <button class="btn btn-primary btn-sm" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                    <?php endif; ?>
 
-                                    <a href="manage_trip.php?action=delete&id=<?php echo $trip['id']; ?>"
-                                        class="btn btn-danger"
-                                        onclick="return confirm('Bạn có chắc chắn muốn xóa chuyến đi này?')">
-                                        <i class="fas fa-trash"></i> Xóa
-                                    </a>
+                                    <?php if ($trip['status'] == 'cancelled'): ?>
+                                        <a href="manage_trip.php?action=delete&id=<?php echo $trip['id']; ?>"
+                                           class="btn btn-danger btn-sm"
+                                           onclick="return confirm('CẢNH BÁO: Hành động này sẽ XÓA VĨNH VIỄN chuyến đi khỏi cơ sở dữ liệu. Bạn có chắc không?')">
+                                            <i class="fas fa-trash-alt"></i> Xóa vĩnh viễn
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="manage_trip.php?action=delete&id=<?php echo $trip['id']; ?>"
+                                           class="btn btn-warning btn-sm" style="background-color: #e74c3c; color: white;"
+                                           onclick="return confirm('Bạn có chắc muốn HỦY chuyến đi này? Trạng thái sẽ chuyển thành Đã Hủy.')">
+                                            <i class="fas fa-ban"></i> Hủy chuyến
+                                        </a>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -395,14 +407,13 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
             </table>
         </div>
     </div>
-
+    
     <div class="modal" id="addTripModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-bus"></i> Thêm Chuyến Đi Mới</h2>
                 <button class="close-btn" onclick="closeModal('addTripModal')">&times;</button>
             </div>
-
             <div class="trip-type-selection">
                 <div class="trip-type-btn active" onclick="selectTripType('one-way')">
                     <i class="fas fa-arrow-right"></i>
@@ -482,7 +493,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                     <h2><i class="fas fa-edit"></i> Chỉnh Sửa Chuyến Đi</h2>
                     <button class="close-btn" onclick="closeEditModal()">&times;</button>
                 </div>
-
                 <div class="trip-type-selection">
                     <div class="trip-type-btn <?php echo $edit_trip['ticket_type'] == 'one-way' ? 'active' : ''; ?>" onclick="selectEditTripType('one-way')">
                         <i class="fas fa-arrow-right"></i>
@@ -562,6 +572,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
     <?php endif; ?>
 
     <script>
+        // JS giữ nguyên
         function openAddTripModal() {
             document.getElementById('addTripModal').style.display = 'flex';
             const today = new Date().toISOString().slice(0, 16);
@@ -570,22 +581,17 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                 input.min = today;
             });
         }
-
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
         }
-
         function closeEditModal() {
             window.location.href = 'manage_trip.php';
         }
-
         function selectTripType(type) {
             const buttons = document.querySelectorAll('#addTripModal .trip-type-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
-
             const returnTimeGroup = document.getElementById('returnTimeGroup');
             const returnTimeInput = document.querySelector('#returnTimeGroup input[name="return_time"]');
-
             if (type === 'one-way') {
                 document.querySelector('#addTripModal .trip-type-btn:nth-child(1)').classList.add('active');
                 document.getElementById('tripType').value = 'one-way';
@@ -599,14 +605,11 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                 returnTimeInput.setAttribute('required', 'required');
             }
         }
-
         function selectEditTripType(type) {
             const buttons = document.querySelectorAll('#editTripModal .trip-type-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
-
             const returnTimeGroup = document.getElementById('editReturnTimeGroup');
             const returnTimeInput = document.querySelector('#editReturnTimeGroup input[name="return_time"]');
-
             if (type === 'one-way') {
                 document.querySelector('#editTripModal .trip-type-btn:nth-child(1)').classList.add('active');
                 document.getElementById('editTripType').value = 'one-way';
@@ -620,24 +623,12 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                 returnTimeInput.setAttribute('required', 'required');
             }
         }
-
         window.onclick = function(event) {
             const modal = document.getElementById('addTripModal');
             if (event.target === modal) {
                 closeModal('addTripModal');
             }
         }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date().toISOString().slice(0, 16);
-            const datetimeInputs = document.querySelectorAll('input[type="datetime-local"]');
-            datetimeInputs.forEach(input => {
-                if (!input.value) {
-                    input.min = today;
-                }
-            });
-        });
     </script>
 </body>
-
 </html>

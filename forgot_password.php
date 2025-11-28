@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Khôi phục mật khẩu - TMS VéXe</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="page-auth">
   <div class="card forgot-card">
@@ -24,11 +24,11 @@
       <button id="btnSendReset" class="btn primary">Gửi link đặt lại mật khẩu</button>
     </form>
 
-    <div id="msg" class="message"></div>
+    <div id="msg" class="message" style="margin-top:10px; text-align:center;"></div>
     <p class="muted"><a href="login.php">Quay lại đăng nhập</a></p>
   </div>
 
-  <script src="script.js"></script>
+  <script src="js/script.js"></script>
   <script>
     document.getElementById('forgotForm').addEventListener('submit', function(e){
       e.preventDefault();

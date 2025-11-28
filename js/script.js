@@ -1,3 +1,54 @@
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. Auto set date (Chỉ chạy nếu có input date)
+    const dateInput = document.getElementById('date');
+    if (dateInput) {
+        const today = new Date();
+        const dateStr = today.toISOString().substr(0, 10);
+        dateInput.value = dateStr;
+        dateInput.min = dateStr;
+    }
+
+    // 2. Form validation (Chỉ chạy nếu là form tìm kiếm vé)
+    // Chúng ta kiểm tra xem có tồn tại element 'origin' không trước khi gán sự kiện
+    const originInput = document.getElementById('origin');
+    const destinationInput = document.getElementById('destination');
+    const searchForm = document.querySelector('form'); // Cẩn thận: Nếu trang login cũng có form, nó sẽ lấy form login
+
+    // Chỉ gán sự kiện validate NẾU đang ở trang có input origin và destination
+    if (originInput && destinationInput && searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            if (originInput.value === destinationInput.value) {
+                e.preventDefault();
+                alert('⚠️ Nơi đi và nơi đến không được trùng nhau!');
+                originInput.focus();
+                return false;
+            }
+
+            // Show loading
+            const searchBtn = document.getElementById('search-btn');
+            if (searchBtn) {
+                searchBtn.disabled = true;
+                searchBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Đang tìm kiếm...`;
+            }
+        });
+    }
+
+    // 3. Animate route cards (Chỉ chạy nếu có class .route-card)
+    const routeCards = document.querySelectorAll('.route-card');
+    if (routeCards.length > 0) {
+        routeCards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-5px)';
+                card.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            });
+        });
+    }
+});
+
 /**
  * script.js
  * Xử lý các sự kiện Frontend và gọi AJAX tới api.php

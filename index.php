@@ -440,25 +440,29 @@ if (isset($_SESSION['user_id']) || isset($_SESSION['admin_id'])) {
                     </div>
 
                     <div class="user-info flex items-center gap-3 cursor-pointer group relative z-40">
-                        <div class="text-right hidden md:block">
-                            <div class="text-sm font-semibold text-white"><?php echo htmlspecialchars($display_name); ?></div>
-                            <div class="text-xs text-gray-400">Thành viên</div>
-                        </div>
+    
+<div class="user-info relative z-40" id="userMenuContainer">
+    
+    <div onclick="toggleUserMenu()" class="flex items-center gap-3 cursor-pointer select-none">
+        <div class="text-right hidden md:block">
+            <div class="text-sm font-semibold text-white"><?php echo htmlspecialchars($display_name); ?></div>
+            <div class="text-xs text-gray-400">Thành viên</div>
+        </div>
 
-                        <div class="user-avatar w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg border-2 border-[#2c3e50] group-hover:border-cyan-400 transition-all">
-                            <?php echo strtoupper(substr($display_name, 0, 1)); ?>
-                        </div>
+        <div class="user-avatar w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg border-2 border-[#2c3e50] hover:border-cyan-400 transition-all">
+            <?php echo strtoupper(substr($display_name, 0, 1)); ?>
+        </div>
+    </div>
 
-                        <div class="dropdown-menu absolute top-full right-0 mt-3 w-48 bg-white rounded-xl shadow-xl overflow-hidden hidden group-hover:block transition-all">
-                            <a href="profile.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-cyan-600 transition">
-                                <i class="fas fa-user mr-2"></i> Hồ sơ cá nhân
-                            </a>
-                            <div class="border-t border-gray-100"></div>
-                            <a href="logout.php" class="block px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition">
-                                <i class="fas fa-sign-out-alt mr-2"></i> Đăng xuất
-                            </a>
-                        </div>
-                    </div>
+    <div id="userDropdown" class="hidden absolute top-full right-0 mt-3 w-48 bg-white rounded-xl shadow-xl overflow-hidden transition-all transform origin-top-right z-50 animate-fade-in-down">
+        <a href="profile.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-cyan-600 transition border-b border-gray-100">
+            <i class="fas fa-user mr-2"></i> Hồ sơ cá nhân
+        </a>
+        <a href="logout.php" class="block px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition">
+            <i class="fas fa-sign-out-alt mr-2"></i> Đăng xuất
+        </a>
+    </div>
+</div>
                 <?php else: ?>
                     <div class="flex gap-4">
                         <a href="login.php" class="text-gray-300 hover:text-white transition font-medium text-sm py-2">Đăng nhập</a>
@@ -506,8 +510,8 @@ if (isset($_SESSION['user_id']) || isset($_SESSION['admin_id'])) {
                         <?php
                         $result = $conn->query("SELECT * FROM provinces ORDER BY province_name");
                         while ($row = $result->fetch_assoc()) {
-                        
-echo "<option value='{$row['id']}'>{$row['province_name']}</option>";
+
+                            echo "<option value='{$row['id']}'>{$row['province_name']}</option>";
                         }
                         ?>
                     </select>
@@ -660,6 +664,23 @@ echo "<option value='{$row['id']}'>{$row['province_name']}</option>";
             updateNotificationCount();
         });
     </script>
+<script>
+    function toggleUserMenu() {
+        const menu = document.getElementById('userDropdown');
+        menu.classList.toggle('hidden');
+    }
+
+    // Đóng menu khi click ra ngoài
+    document.addEventListener('click', function(event) {
+        const container = document.getElementById('userMenuContainer');
+        const menu = document.getElementById('userDropdown');
+        
+        // Nếu click không nằm trong container thì ẩn menu đi
+        if (!container.contains(event.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+</script>
 </body>
 
 </html>

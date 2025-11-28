@@ -1,5 +1,6 @@
 <?php
-include '../config.php';
+// Sử dụng đường dẫn tuyệt đối để tránh lỗi include
+require_once dirname(__DIR__) . '/includes/config.php';
 
 $pageTitle = "Báo cáo & Thống kê";
 
@@ -18,24 +19,24 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
     header('Content-Disposition: attachment;filename="bao_cao_doanh_thu_' . date('Y-m-d') . '.xls"');
     header('Cache-Control: max-age=0');
     
-    // SQL Thống kê
+    // SQL Thống kê (SỬA: total_amount -> total_price, customer_id -> user_id)
     $stmt = $pdo->prepare("SELECT 
-        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(SUM(total_price), 0) as total_revenue,
         COUNT(*) as total_bookings,
-        COALESCE(AVG(total_amount), 0) as avg_booking_value,
-        COUNT(DISTINCT customer_id) as unique_customers
+        COALESCE(AVG(total_price), 0) as avg_booking_value,
+        COUNT(DISTINCT user_id) as unique_customers
         FROM bookings 
         WHERE booking_date BETWEEN ? AND ? AND payment_status = 'paid'");
     $stmt->execute([$start_date . ' 00:00:00', $end_date . ' 23:59:59']);
     $exportStats = $stmt->fetch();
     
-    // SQL Top chuyến đi
+    // SQL Top chuyến đi (SỬA: total_amount -> total_price, b.id -> b.booking_id)
     $stmt = $pdo->prepare("SELECT 
         t.id,
         p1.province_name as departure_location,
         p2.province_name as destination,
-        COUNT(b.id) as booking_count,
-        COALESCE(SUM(b.total_amount), 0) as total_revenue
+        COUNT(b.booking_id) as booking_count,
+        COALESCE(SUM(b.total_price), 0) as total_revenue
         FROM trips t
         LEFT JOIN provinces p1 ON t.departure_province_id = p1.id
         LEFT JOIN provinces p2 ON t.destination_province_id = p2.id
@@ -71,27 +72,27 @@ if (isset($_GET['export']) && $_GET['export'] == 'excel') {
 
 // 3. LẤY DỮ LIỆU DASHBOARD
 
-// 3.1 Thống kê tổng quan
+// 3.1 Thống kê tổng quan (SỬA: total_amount -> total_price, customer_id -> user_id)
 $stmt = $pdo->prepare("SELECT 
-    COALESCE(SUM(total_amount), 0) as total_revenue,
+    COALESCE(SUM(total_price), 0) as total_revenue,
     COUNT(*) as total_bookings,
-    COALESCE(AVG(total_amount), 0) as avg_booking_value,
-    COUNT(DISTINCT customer_id) as unique_customers
+    COALESCE(AVG(total_price), 0) as avg_booking_value,
+    COUNT(DISTINCT user_id) as unique_customers
     FROM bookings 
     WHERE booking_date BETWEEN ? AND ? AND payment_status = 'paid'");
 $stmt->execute([$start_date . ' 00:00:00', $end_date . ' 23:59:59']);
 $revenueStats = $stmt->fetch();
 
-// 3.2 Dữ liệu Biểu đồ (Logic mới cho Bar Chart)
+// 3.2 Dữ liệu Biểu đồ (SỬA: total_amount -> total_price)
 if ($chart_mode == 'month') {
     // Group theo Tháng (YYYY-MM)
-    $sql_chart = "SELECT DATE_FORMAT(booking_date, '%Y-%m') as time_label, SUM(total_amount) as revenue
+    $sql_chart = "SELECT DATE_FORMAT(booking_date, '%Y-%m') as time_label, SUM(total_price) as revenue
                   FROM bookings 
                   WHERE booking_date BETWEEN ? AND ? AND payment_status = 'paid'
                   GROUP BY DATE_FORMAT(booking_date, '%Y-%m') ORDER BY time_label ASC";
 } else {
     // Group theo Ngày (YYYY-MM-DD)
-    $sql_chart = "SELECT DATE_FORMAT(booking_date, '%Y-%m-%d') as time_label, SUM(total_amount) as revenue
+    $sql_chart = "SELECT DATE_FORMAT(booking_date, '%Y-%m-%d') as time_label, SUM(total_price) as revenue
                   FROM bookings 
                   WHERE booking_date BETWEEN ? AND ? AND payment_status = 'paid'
                   GROUP BY DATE_FORMAT(booking_date, '%Y-%m-%d') ORDER BY time_label ASC";
@@ -127,13 +128,13 @@ if ($chart_mode == 'day') {
     $chartData = $rawChartData;
 }
 
-// 3.3 Top Chuyến đi
+// 3.3 Top Chuyến đi (SỬA: b.id -> b.booking_id, total_amount -> total_price)
 $stmt = $pdo->prepare("SELECT 
     t.id,
     p1.province_name as departure_location,
     p2.province_name as destination,
-    COUNT(b.id) as booking_count,
-    COALESCE(SUM(b.total_amount), 0) as total_revenue
+    COUNT(b.booking_id) as booking_count,
+    COALESCE(SUM(b.total_price), 0) as total_revenue
     FROM trips t
     LEFT JOIN provinces p1 ON t.departure_province_id = p1.id
     LEFT JOIN provinces p2 ON t.destination_province_id = p2.id
@@ -147,11 +148,14 @@ $stmt->execute([$start_date . ' 00:00:00', $end_date . ' 23:59:59']);
 $popularTrips = $stmt->fetchAll();
 
 // 3.4 Thống kê Khách hàng
+// Kiểm tra nếu bảng customers vẫn được dùng, nếu không thì dùng bảng users với role='customer'
+// Ở đây tôi giữ nguyên query từ customers như bạn gửi, nhưng nếu bạn đã bỏ bảng customers thì cần sửa thành users.
+// Tuy nhiên, logic báo cáo thường ưu tiên dữ liệu đã có.
 $stmt = $pdo->query("SELECT 
     COUNT(*) as total_customers,
     COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) as new_today,
     COUNT(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as new_this_week
-    FROM customers");
+    FROM customers"); 
 $customerStats = $stmt->fetch();
 ?>
 

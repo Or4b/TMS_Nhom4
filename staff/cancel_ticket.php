@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once '../config.php';
+require_once '../includes/config.php';
 
 // Kiểm tra session
 if (!isset($_SESSION['staff_logged_in']) || $_SESSION['staff_logged_in'] !== true) {

@@ -8,7 +8,7 @@ $token = $_GET['token'] ?? '';
   <meta charset="utf-8">
   <title>Đặt lại mật khẩu - TMS VéXe</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="page-auth">
   <div class="card reset-card">

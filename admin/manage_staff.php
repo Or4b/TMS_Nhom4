@@ -1,6 +1,5 @@
 <?php
-include '../config.php';
-
+require_once dirname(__DIR__) . '/includes/config.php';
 $pageTitle = "Quản lý Nhân viên";
 
 // --- XỬ LÝ FORM (THÊM MỚI HOẶC CẬP NHẬT) ---

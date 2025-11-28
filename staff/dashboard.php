@@ -1,8 +1,7 @@
 <?php
 session_start();
-// --- SỬA LỖI FATAL: Dùng dirname(__DIR__) để tìm đường dẫn tuyệt đối vật lý ---
-require_once '../config.php';
-// --- END SỬA LỖI FATAL ---
+// --- Dùng dirname(__DIR__) để tìm đường dẫn tuyệt đối vật lý ---
+require_once dirname(__DIR__) . '/includes/config.php';
 
 if (!isset($_SESSION['staff_logged_in']) || $_SESSION['staff_logged_in'] !== true) {
     // Nếu chưa đăng nhập, chuyển hướng về trang login
@@ -19,6 +18,7 @@ $today_end = date('Y-m-d 23:59:59');
 
 // Hàm lấy COUNT gọn và chuẩn PDO
 function getCount($pdo, $status, $start, $end) {
+    // SỬA: status trong DB là 'pending', 'confirmed', 'cancelled'
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE status = ? AND booking_date BETWEEN ? AND ?");
     $stmt->execute([$status, $start, $end]);
     return $stmt->fetchColumn();
@@ -32,13 +32,16 @@ $cancelled_count = getCount($pdo, 'cancelled', $today_start, $today_end);
 // Nếu vé bán tại quầy = vé đã xác nhận (tạm thời)
 $counter_count = $confirmed_count;
 
-// Lấy danh sách vé pending chi tiết (ĐÃ SỬA LỖI SQL)
-// Thay p1.name -> p1.province_name và p2.name -> p2.province_name
-$sql_list = "SELECT b.id, b.total_amount, b.number_of_seats, b.booking_date, 
+// --- SỬA LỖI SQL: CẬP NHẬT TÊN CỘT KHỚP VỚI DATABASE ---
+// b.id -> b.booking_id
+// b.total_amount -> b.total_price
+// b.number_of_seats -> b.quantity
+// b.customer_id -> b.user_id
+$sql_list = "SELECT b.booking_id, b.total_price, b.quantity, b.booking_date, 
                     u.full_name, u.phone, 
                     p1.province_name AS origin, p2.province_name AS destination
              FROM bookings b
-             JOIN users u ON b.customer_id = u.id
+             JOIN users u ON b.user_id = u.id
              JOIN trips t ON b.trip_id = t.id
              JOIN provinces p1 ON t.departure_province_id = p1.id
              JOIN provinces p2 ON t.destination_province_id = p2.id
@@ -48,7 +51,6 @@ $sql_list = "SELECT b.id, b.total_amount, b.number_of_seats, b.booking_date,
 
 $stmt = $pdo->query($sql_list);
 $pending_tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 
 include 'includes/header_staff.php';
 ?>
@@ -67,17 +69,17 @@ include 'includes/header_staff.php';
             <?php foreach ($pending_tickets as $ticket): ?>
                 <div class="row align-items-center mb-3 pb-3 border-bottom">
                     <div class="col-md-8">
-                        <p class="fw-bold mb-1 text-primary">#<?php echo $ticket['id'] . ' - ' . htmlspecialchars($ticket['full_name']); ?></p>
+                        <p class="fw-bold mb-1 text-primary">#<?php echo $ticket['booking_id'] . ' - ' . htmlspecialchars($ticket['full_name']); ?></p>
                         <p class="mb-0 text-muted small">
                             <i class="fas fa-phone me-1"></i> <?php echo htmlspecialchars($ticket['phone']); ?> 
                             <span class="mx-2 text-primary">|</span> <i class="fas fa-route me-1"></i> <?php echo htmlspecialchars($ticket['origin'] . ' -> ' . $ticket['destination']); ?> 
-                            <span class="mx-2 text-primary">|</span> <i class="fas fa-chair me-1"></i> Ghế: <?php echo $ticket['number_of_seats']; ?> 
-                            <span class="mx-2 text-primary">|</span> <?php echo number_format($ticket['total_amount']); ?> VNĐ
+                            <span class="mx-2 text-primary">|</span> <i class="fas fa-chair me-1"></i> Ghế: <?php echo $ticket['quantity']; ?> 
+                            <span class="mx-2 text-primary">|</span> <?php echo number_format($ticket['total_price']); ?> VNĐ
                         </p>
                     </div>
                     <div class="col-md-4 text-end">
-                        <button class="btn btn-success btn-sm me-2" data-id="<?php echo $ticket['id']; ?>" data-action="confirm">Xác nhận</button>
-                        <button class="btn btn-danger btn-sm" data-id="<?php echo $ticket['id']; ?>" data-action="cancel">Từ chối</button>
+                        <button class="btn btn-success btn-sm me-2" data-id="<?php echo $ticket['booking_id']; ?>" data-action="confirm">Xác nhận</button>
+                        <button class="btn btn-danger btn-sm" data-id="<?php echo $ticket['booking_id']; ?>" data-action="cancel">Từ chối</button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -107,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert(data.message);
                     if (data.success) { window.location.reload(); }
                 })
-                .catch(error => alert('Lỗi mạng.'));
+                .catch(error => alert('Lỗi mạng hoặc lỗi hệ thống.'));
             }
         });
     });
@@ -116,5 +118,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <?php 
 include 'includes/footer_staff.php';
-
 ?>

@@ -267,6 +267,7 @@ if ($origin > 0 && $destination > 0) {
                                 </div>
                                 
                                 <?php if ($is_virtual): ?>
+                                    <!-- CHUYẾN ẢO: Vẫn qua create_and_book.php để tạo chuyến -->
                                     <form action="create_and_book.php" method="POST">
                                         <input type="hidden" name="origin_id" value="<?php echo $trip['origin_id']; ?>">
                                         <input type="hidden" name="dest_id" value="<?php echo $trip['dest_id']; ?>">
@@ -282,7 +283,8 @@ if ($origin > 0 && $destination > 0) {
                                         </button>
                                     </form>
                                 <?php else: ?>
-                                    <a href="booking.php?trip_id=<?php echo $trip['schedule_id']; ?>" 
+                                    <!-- CHUYẾN THẬT: Đi thẳng đến select-seat.php -->
+                                    <a href="select-seat.php?trip_id=<?php echo $trip['schedule_id']; ?>" 
                                        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold whitespace-nowrap w-full lg:w-auto text-center">
                                         Chọn chuyến
                                     </a>

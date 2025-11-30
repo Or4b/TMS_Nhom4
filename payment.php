@@ -1,3 +1,51 @@
+<?php
+session_start();
+require_once 'includes/config.php';
+
+// Kiểm tra đăng nhập
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit();
+}
+
+// Lấy thông tin từ URL
+$trip_id = $_GET['trip_id'] ?? 0;
+$seats = $_GET['seats'] ?? '';
+$seats_display = $_GET['seats_display'] ?? '';
+$fullname = $_GET['fullname'] ?? '';
+$email = $_GET['email'] ?? '';
+$phone = $_GET['phone'] ?? '';
+
+if (!$trip_id || !$seats) {
+    header('Location: search.php');
+    exit();
+}
+
+// Lấy thông tin chuyến xe
+$stmt = $pdo->prepare("SELECT t.*, 
+             po.province_name as origin_name, 
+             pd.province_name as destination_name
+             FROM trips t
+             JOIN provinces po ON t.departure_province_id = po.id
+             JOIN provinces pd ON t.destination_province_id = pd.id
+             WHERE t.id = ?");
+$stmt->execute([$trip_id]);
+$trip = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$trip) {
+    header('Location: search.php');
+    exit();
+}
+
+// Tính toán giá
+$seat_count = count(explode(',', $seats_display));
+$price_per_seat = $trip['price'];
+$subtotal = $seat_count * $price_per_seat;
+$service_fee = 10000;
+$discount = 0;
+$total = $subtotal + $service_fee - $discount;
+?>
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -17,7 +65,6 @@
             color: #333;
         }
 
-        /* Header */
         .header {
             background: #4a3f4f;
             color: white;
@@ -50,7 +97,6 @@
             opacity: 0.8;
         }
 
-        /* Progress Steps */
         .progress-container {
             background: white;
             padding: 2rem 0;
@@ -98,7 +144,6 @@
             color: #333;
         }
 
-        /* Main Content */
         .main-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -108,7 +153,6 @@
             gap: 2rem;
         }
 
-        /* Left Side - Payment Method */
         .payment-method-section {
             background: white;
             border-radius: 8px;
@@ -201,23 +245,28 @@
         .complete-btn {
             width: 100%;
             padding: 1rem;
-            background: #27ae60;
-            color: white;
+            background: #d1d5db;
+            color: #6b7280;
             border: none;
             border-radius: 8px;
             font-size: 1.1rem;
             font-weight: 600;
-            cursor: pointer;
+            cursor: not-allowed;
             transition: all 0.3s;
         }
 
-        .complete-btn:hover {
+        .complete-btn.active {
+            background: #27ae60;
+            color: white;
+            cursor: pointer;
+        }
+
+        .complete-btn.active:hover {
             background: #229954;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
         }
 
-        /* Right Side - Order Summary */
         .order-summary {
             background: white;
             border-radius: 8px;
@@ -343,7 +392,6 @@
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
         <div class="header-content">
             <div class="logo">TMS VéXe</div>
@@ -353,7 +401,6 @@
         </div>
     </div>
 
-    <!-- Progress Steps -->
     <div class="progress-container">
         <div class="progress-steps">
             <div class="step completed">
@@ -365,15 +412,13 @@
                 <div class="step-label">Chọn ghế</div>
             </div>
             <div class="step active">
-                <div class="step-circle">4</div>
+                <div class="step-circle">3</div>
                 <div class="step-label">Thanh toán</div>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
     <div class="main-container">
-        <!-- Left Side - Payment Method -->
         <div class="payment-method-section">
             <h2 class="section-title">Chọn Phương Thức Thanh Toán</h2>
             
@@ -381,78 +426,111 @@
                 Thời gian còn lại: <span class="timer" id="countdown">14:58</span>
             </div>
 
-            <div class="payment-options">
-                <div class="payment-option" onclick="selectPayment(this)">
-                    <div class="radio-circle"></div>
-                    <div class="option-text">Chuyển khoản ngân hàng</div>
+            <form id="paymentForm" method="POST" action="process_payment.php">
+                <input type="hidden" name="trip_id" value="<?php echo $trip_id; ?>">
+                <input type="hidden" name="seats" value="<?php echo htmlspecialchars($seats); ?>">
+                <input type="hidden" name="seats_display" value="<?php echo htmlspecialchars($seats_display); ?>">
+                <input type="hidden" name="fullname" value="<?php echo htmlspecialchars($fullname); ?>">
+                <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
+                <input type="hidden" name="phone" value="<?php echo htmlspecialchars($phone); ?>">
+                <input type="hidden" name="total" value="<?php echo $total; ?>">
+                <input type="hidden" name="payment_method" id="selectedPaymentMethod" value="">
+
+                <div class="payment-options">
+                    <div class="payment-option" onclick="selectPayment(this, 'bank_transfer')">
+                        <div class="radio-circle"></div>
+                        <div class="option-text">💳 Chuyển khoản ngân hàng</div>
+                    </div>
+
+                    <div class="payment-option" onclick="selectPayment(this, 'counter')">
+                        <div class="radio-circle"></div>
+                        <div class="option-text">🏢 Thanh toán tại quầy</div>
+                    </div>
                 </div>
 
-                <div class="payment-option" onclick="selectPayment(this)">
-                    <div class="radio-circle"></div>
-                    <div class="option-text">Quét QR Code</div>
-                </div>
-
-                <div class="payment-option" onclick="selectPayment(this)">
-                    <div class="radio-circle"></div>
-                    <div class="option-text">Thanh toán tại quầy</div>
-                </div>
-            </div>
-
-            <button class="complete-btn">Hoàn tất thanh toán</button>
+                <button type="button" class="complete-btn" id="completeBtn" onclick="completePayment()">
+                    Xác nhận thanh toán
+                </button>
+            </form>
         </div>
 
-        <!-- Right Side - Order Summary -->
         <div class="order-summary">
             <h3 class="summary-title">Thông Tin Đơn Hàng</h3>
             
             <div class="trip-details">
-                <div class="route">Hồ Chí Minh → Đà Lạt</div>
-                <div class="trip-info">15/10/2025 - 07:30</div>
-                <div class="trip-info">Xe giường nằm 45 chỗ</div>
+                <div class="route">
+                    <?php echo htmlspecialchars($trip['origin_name']); ?> → 
+                    <?php echo htmlspecialchars($trip['destination_name']); ?>
+                </div>
+                <div class="trip-info"><?php echo date('d/m/Y - H:i', strtotime($trip['departure_time'])); ?></div>
+                <div class="trip-info">Xe buýt <?php echo $trip['total_seats']; ?> chỗ<?php echo $trip['ticket_type'] == 'round_trip' ? ' • Khứ hồi' : ' • Một chiều'; ?></div>
                 <div class="seats-info">
-                    <span class="seats-label">Ghế:</span> A02, A03, A04
+                    <span class="seats-label">Ghế:</span> <?php echo htmlspecialchars($seats_display); ?>
                 </div>
             </div>
 
             <div class="price-details">
                 <div class="price-row">
-                    <span class="price-label">Giá vé (3 ghế):</span>
-                    <span class="price-value">1,050,000 VNĐ</span>
+                    <span class="price-label">Giá vé (<?php echo $seat_count; ?> ghế):</span>
+                    <span class="price-value"><?php echo number_format($subtotal, 0, ',', '.'); ?> VNĐ</span>
                 </div>
                 <div class="price-row">
                     <span class="price-label">Phí dịch vụ:</span>
-                    <span class="price-value">30,000 VNĐ</span>
+                    <span class="price-value"><?php echo number_format($service_fee, 0, ',', '.'); ?> VNĐ</span>
                 </div>
+                <?php if ($discount > 0): ?>
                 <div class="price-row discount-row">
                     <span class="price-label">Khuyến mãi:</span>
-                    <span class="price-value">-100,000 VNĐ</span>
+                    <span class="price-value">-<?php echo number_format($discount, 0, ',', '.'); ?> VNĐ</span>
                 </div>
+                <?php endif; ?>
                 <div class="price-row total-row">
                     <span class="price-label">Tổng cộng:</span>
-                    <span class="price-value">1,400,000 VNĐ</span>
+                    <span class="price-value"><?php echo number_format($total, 0, ',', '.'); ?> VNĐ</span>
                 </div>
             </div>
 
             <div class="passenger-info">
                 <div class="info-title">Thông tin hành khách:</div>
-                <div class="passenger-name">Nguyễn Văn A</div>
-                <div class="contact-info">Email: nguyenvana@email.com</div>
-                <div class="contact-info">Điện thoại: 0123456789</div>
+                <div class="passenger-name"><?php echo htmlspecialchars($fullname); ?></div>
+                <div class="contact-info">Email: <?php echo htmlspecialchars($email); ?></div>
+                <div class="contact-info">Điện thoại: <?php echo htmlspecialchars($phone); ?></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Select payment method
-        function selectPayment(element) {
+        let selectedMethod = '';
+
+        function selectPayment(element, method) {
             document.querySelectorAll('.payment-option').forEach(option => {
                 option.classList.remove('selected');
             });
             element.classList.add('selected');
+            selectedMethod = method;
+            document.getElementById('selectedPaymentMethod').value = method;
+            
+            const btn = document.getElementById('completeBtn');
+            btn.classList.add('active');
+            btn.disabled = false;
         }
 
-        // Countdown timer
-        let timeLeft = 898; // 14:58 = 898 seconds
+        function completePayment() {
+            if (!selectedMethod) {
+                alert('Vui lòng chọn phương thức thanh toán');
+                return;
+            }
+
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Đang xử lý...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                document.getElementById('paymentForm').submit();
+            }, 1000);
+        }
+
+        let timeLeft = 898;
         
         function updateTimer() {
             const minutes = Math.floor(timeLeft / 60);
@@ -465,6 +543,7 @@
             } else {
                 clearInterval(timerInterval);
                 alert('Hết thời gian đặt vé!');
+                window.location.href = 'search.php';
             }
         }
 

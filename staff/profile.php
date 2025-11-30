@@ -55,16 +55,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
     $new_password = $_POST['new_password'];
     $confirm_password = $_POST['confirm_password'];
     
-    $user_pass_hash = $pdo->prepare("SELECT password FROM users WHERE id = ?")->execute([$user_id])->fetchColumn();
+    // Lấy mật khẩu cũ từ DB để kiểm tra
+    $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $stored_password = $stmt->fetchColumn();
 
     if ($new_password !== $confirm_password) {
         $message = '<div class="alert alert-warning">Mật khẩu mới và xác nhận mật khẩu không khớp.</div>';
-    } elseif (!password_verify($current_password, $user_pass_hash)) {
+    } elseif ($current_password !== $stored_password) { 
+        // SỬA: So sánh trực tiếp chuỗi (Plain text comparison) thay vì dùng password_verify
         $message = '<div class="alert alert-danger">Mật khẩu hiện tại không đúng.</div>';
     } else {
-        $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+        // SỬA: Lưu mật khẩu dạng text thường, KHÔNG dùng password_hash
         try {
-            $pdo->prepare("UPDATE users SET password = ? WHERE id = ?")->execute([$new_password_hash, $user_id]);
+            $stmt_update = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $stmt_update->execute([$new_password, $user_id]);
             $message = '<div class="alert alert-success">Đổi mật khẩu thành công!</div>';
         } catch (PDOException $e) {
             $message = '<div class="alert alert-danger">Lỗi đổi mật khẩu: ' . $e->getMessage() . '</div>';

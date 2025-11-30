@@ -9,59 +9,53 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Kiểm tra đã chọn chuyến xe chưa
-if (!isset($_GET['schedule_id']) || empty($_GET['schedule_id'])) {
+if (!isset($_GET['trip_id']) || empty($_GET['trip_id'])) {
     header('Location: search.php');
     exit();
 }
 
-$schedule_id = $_GET['schedule_id'];
+$trip_id = $_GET['trip_id'];
 $user_id = $_SESSION['user_id'];
 
+// Lấy thông tin user
+$stmt = $pdo->prepare("SELECT full_name, email, phone FROM users WHERE id = ?");
+$stmt->execute([$user_id]);
+$user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+
 // Lấy thông tin chuyến xe
-$sql_trip = "SELECT s.*, 
-             r.base_price, r.is_round_trip,
+$stmt = $pdo->prepare("SELECT t.*, 
              po.province_name as origin_name, 
              pd.province_name as destination_name
-             FROM schedules s
-             JOIN routes r ON s.route_id = r.route_id
-             JOIN provinces po ON r.origin_id = po.province_id
-             JOIN provinces pd ON r.destination_id = pd.province_id
-             WHERE s.schedule_id = ?";
-$stmt = $conn->prepare($sql_trip);
-$stmt->bind_param("i", $schedule_id);
-$stmt->execute();
-$trip = $stmt->get_result()->fetch_assoc();
+             FROM trips t
+             JOIN provinces po ON t.departure_province_id = po.id
+             JOIN provinces pd ON t.destination_province_id = pd.id
+             WHERE t.id = ?");
+$stmt->execute([$trip_id]);
+$trip = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$trip) {
     header('Location: search.php');
     exit();
 }
 
-// Lấy danh sách ghế đã đặt từ bảng bookings
-$sql_booked = "SELECT seat_numbers FROM bookings 
-               WHERE schedule_id = ? AND status != 'đã hủy'";
-$stmt = $conn->prepare($sql_booked);
-$stmt->bind_param("i", $schedule_id);
-$stmt->execute();
-$result = $stmt->get_result();
+// Lấy danh sách ghế đã đặt
+$stmt = $pdo->prepare("SELECT seat_numbers FROM bookings 
+               WHERE trip_id = ? AND status != 'cancelled'");
+$stmt->execute([$trip_id]);
 $booked_seats = [];
-while ($row = $result->fetch_assoc()) {
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     if (!empty($row['seat_numbers'])) {
-        // Tách chuỗi ghế "1-12,1-15,1-16" thành mảng ["1-12", "1-15", "1-16"]
         $seats = explode(',', $row['seat_numbers']);
         foreach ($seats as $seat) {
-            // Chuyển "1-12" thành "A12" (cột 1 = A, cột 2 = B, ...)
             $parts = explode('-', trim($seat));
             if (count($parts) == 2) {
-                $col = chr(64 + intval($parts[0])); // 1=A, 2=B, 3=C, 4=D
+                $col = chr(64 + intval($parts[0]));
                 $row_num = $parts[1];
                 $booked_seats[] = $col . $row_num;
             }
         }
     }
 }
-
-include 'includes/header.php';
 ?>
 
 <!DOCTYPE html>
@@ -277,6 +271,30 @@ include 'includes/header.php';
             font-size: 0.9rem;
         }
 
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
         .promo-section {
             margin-bottom: 1.5rem;
         }
@@ -382,7 +400,7 @@ include 'includes/header.php';
             </div>
             <div class="step active">
                 <div class="step-number">2</div>
-                <span>Chọn ghế</span>
+                <span>Chọn ghế & Thông tin</span>
             </div>
             <div class="step inactive">
                 <div class="step-number">3</div>
@@ -406,7 +424,6 @@ include 'includes/header.php';
 
                 <div class="seats-grid" id="seatsGrid">
                     <?php
-                    // Xe buýt 25 chỗ: 5 hàng x 5 cột
                     $rows = ['A', 'B', 'C', 'D', 'E'];
                     $cols = range(1, 5);
                     
@@ -448,12 +465,34 @@ include 'includes/header.php';
                         <?php echo htmlspecialchars($trip['destination_name']); ?>
                     </h3>
                     <p class="summary-text"><?php echo date('d/m/Y - H:i', strtotime($trip['departure_time'])); ?></p>
-                    <p class="summary-text">Xe buýt 25 chỗ<?php echo $trip['is_round_trip'] ? ' • Khứ hồi' : ' • Một chiều'; ?></p>
+                    <p class="summary-text">Xe buýt <?php echo $trip['total_seats']; ?> chỗ<?php echo $trip['ticket_type'] == 'round_trip' ? ' • Khứ hồi' : ' • Một chiều'; ?></p>
                 </div>
 
                 <div class="summary-section">
                     <h3 class="summary-title">Ghế đã chọn:</h3>
                     <p class="summary-text" id="selectedSeatsDisplay">Chưa chọn ghế nào</p>
+                </div>
+
+                <div class="summary-section" style="border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem;">
+                    <h3 class="summary-title">Thông tin hành khách</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Họ và tên *</label>
+                        <input type="text" class="form-input" id="fullname" 
+                               value="<?php echo htmlspecialchars($user_info['full_name'] ?? ''); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" class="form-input" id="email" 
+                               value="<?php echo htmlspecialchars($user_info['email'] ?? ''); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Số điện thoại *</label>
+                        <input type="tel" class="form-input" id="phone" 
+                               value="<?php echo htmlspecialchars($user_info['phone'] ?? ''); ?>" required>
+                    </div>
                 </div>
 
                 <div class="promo-section">
@@ -462,7 +501,6 @@ include 'includes/header.php';
                         <input type="text" class="promo-input" id="promoCode" placeholder="Nhập mã khuyến mãi">
                         <button class="btn btn-primary" onclick="applyPromo()">Áp dụng</button>
                     </div>
-                    <button class="btn btn-secondary">📋 Xem mã khuyến mãi có sẵn</button>
                 </div>
 
                 <div class="summary-section" style="border-top: 1px solid #e5e7eb; padding-top: 1rem;">
@@ -476,30 +514,27 @@ include 'includes/header.php';
                     </div>
                 </div>
 
-                <button class="btn btn-continue" id="continueBtn" onclick="proceedToPayment()">Tiếp tục</button>
+                <button class="btn btn-continue" id="continueBtn" onclick="proceedToPayment()">Thanh toán</button>
             </div>
         </div>
     </div>
 
     <script>
         const selectedSeats = [];
-        const pricePerSeat = <?php echo $trip['base_price']; ?>;
-        const scheduleId = <?php echo $schedule_id; ?>;
+        const pricePerSeat = <?php echo $trip['price']; ?>;
+        const tripId = <?php echo $trip_id; ?>;
 
-        // Xử lý chọn ghế
         document.querySelectorAll('.seat:not(.booked)').forEach(seat => {
             seat.addEventListener('click', function() {
                 const seatNumber = this.getAttribute('data-seat');
                 
                 if (this.classList.contains('selected')) {
-                    // Bỏ chọn ghế
                     this.classList.remove('selected');
                     const index = selectedSeats.indexOf(seatNumber);
                     if (index > -1) {
                         selectedSeats.splice(index, 1);
                     }
                 } else {
-                    // Chọn ghế
                     this.classList.add('selected');
                     selectedSeats.push(seatNumber);
                 }
@@ -509,16 +544,13 @@ include 'includes/header.php';
         });
 
         function updateSummary() {
-            // Cập nhật danh sách ghế đã chọn
             const display = document.getElementById('selectedSeatsDisplay');
             display.textContent = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'Chưa chọn ghế nào';
             
-            // Cập nhật giá
             const totalPrice = selectedSeats.length * pricePerSeat;
             document.getElementById('originalPrice').textContent = totalPrice.toLocaleString('vi-VN') + ' VNĐ';
             document.getElementById('totalPrice').textContent = totalPrice.toLocaleString('vi-VN') + ' VNĐ';
             
-            // Kích hoạt nút tiếp tục
             const continueBtn = document.getElementById('continueBtn');
             if (selectedSeats.length > 0) {
                 continueBtn.classList.add('active');
@@ -532,7 +564,6 @@ include 'includes/header.php';
         function applyPromo() {
             const promoCode = document.getElementById('promoCode').value.trim();
             if (promoCode) {
-                // TODO: Gọi API kiểm tra mã khuyến mãi
                 alert('Chức năng áp dụng mã khuyến mãi đang được phát triển');
             }
         }
@@ -542,24 +573,32 @@ include 'includes/header.php';
                 alert('Vui lòng chọn ít nhất một ghế');
                 return;
             }
+
+            const fullname = document.getElementById('fullname').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!fullname || !email || !phone) {
+                alert('Vui lòng điền đầy đủ thông tin hành khách');
+                return;
+            }
             
-            // Chuyển ghế từ "A1,B2" thành format "1-1,2-2" để lưu vào DB
             const seatsFormatted = selectedSeats.map(seat => {
-                const col = seat.charCodeAt(0) - 64; // A=1, B=2, C=3...
+                const col = seat.charCodeAt(0) - 64;
                 const row = seat.substring(1);
                 return col + '-' + row;
             }).join(',');
             
-            // Chuyển đến trang thanh toán
             const params = new URLSearchParams({
-                schedule_id: scheduleId,
+                trip_id: tripId,
                 seats: seatsFormatted,
-                seats_display: selectedSeats.join(',')
+                seats_display: selectedSeats.join(','),
+                fullname: fullname,
+                email: email,
+                phone: phone
             });
             window.location.href = 'payment.php?' + params.toString();
         }
     </script>
 </body>
 </html>
-
-<?php include 'includes/footer.php'; ?>

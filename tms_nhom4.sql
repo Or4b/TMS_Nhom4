@@ -6,6 +6,9 @@
 -- Generation Time: Nov 28, 2025 at 04:41 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
+CREATE DATABASE tms_nhom4 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE tms_nhom4;
+-- Đã thêm tạo bản
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -168,12 +171,14 @@ INSERT INTO `provinces` (`id`, `province_name`, `status`, `created_at`) VALUES
 --
 
 CREATE TABLE `staff` (
-  `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
   `salary` decimal(10,2) NOT NULL,
   `hire_date` date NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `staff`
@@ -287,13 +292,6 @@ ALTER TABLE `promotions`
 --
 ALTER TABLE `provinces`
   ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `staff`
---
-ALTER TABLE `staff`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `trips`

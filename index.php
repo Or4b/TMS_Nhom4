@@ -551,57 +551,87 @@ if (isset($_SESSION['user_id']) || isset($_SESSION['admin_id'])) {
         </div>
     </section>
 
-    <section class="main-container" style="margin-top: 2rem;">
+<section class="main-container" style="margin-top: 2rem; margin-bottom: 3rem;">
         <div style="text-align: center; margin-bottom: 2rem;">
-            <h2 style="font-size: 1.8rem; color: #2c3e50; margin-bottom: 0.5rem;">Tuyến đường phổ biến</h2>
+            <h2 style="font-size: 1.8rem; color: #2c3e50; margin-bottom: 0.5rem; font-weight: bold;">Tuyến đường phổ biến</h2>
             <p style="color: #666;">Khám phá những hành trình được yêu thích nhất</p>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
             <?php
-            $query = "SELECT t.id, t.price, 
-                 o.province_name AS origin, d.province_name AS destination,
-                 t.departure_time
-          FROM trips t
-          JOIN provinces o ON t.departure_province_id = o.id
-          JOIN provinces d ON t.destination_province_id = d.id
-          WHERE t.status = 'scheduled' 
-          AND t.departure_time > NOW()  /* Chỉ lấy chuyến chưa đi */
-          ORDER BY t.departure_time ASC /* Chuyến nào đi trước hiện trước */
-          LIMIT 6";
+            // CẬP NHẬT SQL: Lấy đúng cột ticket_type từ bảng trips
+            $query = "SELECT t.id, t.price, t.ticket_type, t.departure_time,
+                     o.province_name AS origin, d.province_name AS destination
+              FROM trips t
+              JOIN provinces o ON t.departure_province_id = o.id
+              JOIN provinces d ON t.destination_province_id = d.id
+              WHERE t.status = 'scheduled' 
+              AND t.departure_time > NOW()
+              ORDER BY t.departure_time ASC
+              LIMIT 6";
 
             $result = $conn->query($query);
 
             if ($result && $result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
                     $price = number_format($row['price'], 0, ',', '.') . 'đ';
-                    $date = date('d/m/Y H:i', strtotime($row['departure_time']));
+                    $date = date('d/m/Y', strtotime($row['departure_time']));
+                    $time = date('H:i', strtotime($row['departure_time']));
+                    
+                    // Xử lý hiển thị Loại vé dựa trên dữ liệu DB
+                    if ($row['ticket_type'] == 'round_trip') {
+                        $badge_text = 'Khứ hồi';
+                        $badge_style = 'background: #fff7ed; color: #c2410c; border: 1px solid #fdba74;'; // Màu cam
+                        $icon_class = 'fas fa-exchange-alt';
+                    } else {
+                        $badge_text = 'Một chiều';
+                        $badge_style = 'background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;'; // Màu tím
+                        $icon_class = 'fas fa-arrow-right';
+                    }
             ?>
-                    <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-                            <div>
-                                <h3 style="font-weight: bold; color: #2c3e50; margin: 0;">
-                                    <?php echo htmlspecialchars($row['origin']); ?> → <?php echo htmlspecialchars($row['destination']); ?>
-                                </h3>
-                                <p style="font-size: 0.9rem; color: #7f8c8d; margin-top: 5px;">
-                                    <i class="far fa-clock"></i> <?php echo $date; ?>
-                                </p>
-                            </div>
-                            <div>
-                                <span style="background: #e8f4fd; color: #3498db; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.9rem;">
+                    <div style="background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #eee; transition: transform 0.2s;">
+                        
+                        <div style="padding: 1.2rem; border-bottom: 1px solid #f0f0f0;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                <span style="<?php echo $badge_style; ?> padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="<?php echo $icon_class; ?>"></i> <?php echo $badge_text; ?>
+                                </span>
+                                
+                                <span style="font-size: 1.1rem; font-weight: bold; color: #e74c3c;">
                                     <?php echo $price; ?>
                                 </span>
                             </div>
+
+                            <h3 style="font-size: 1.1rem; font-weight: 700; color: #2c3e50; margin: 0.5rem 0; display: flex; align-items: center; gap: 8px;">
+                                <?php echo htmlspecialchars($row['origin']); ?> 
+                                <i class="fas fa-long-arrow-alt-right" style="font-size: 1rem; color: #95a5a6;"></i> 
+                                <?php echo htmlspecialchars($row['destination']); ?>
+                            </h3>
                         </div>
-                        <a href="booking.php?trip_id=<?php echo $row['id']; ?>"
-                            style="display: block; width: 100%; text-align: center; background: #2c3e50; color: white; text-decoration: none; padding: 10px; border-radius: 4px; transition: background 0.3s;">
-                            Đặt vé ngay
-                        </a>
+
+                        <div style="padding: 1.2rem; background-color: #fcfcfc;">
+                            <div style="display: flex; gap: 1rem; color: #555; font-size: 0.9rem; margin-bottom: 1rem;">
+                                <div title="Ngày khởi hành">
+                                    <i class="far fa-calendar-alt text-cyan-600"></i> <?php echo $date; ?>
+                                </div>
+                                <div title="Giờ khởi hành">
+                                    <i class="far fa-clock text-cyan-600"></i> <?php echo $time; ?>
+                                </div>
+                            </div>
+
+                            <a href="select-seat.php?trip_id=<?php echo $row['id']; ?>"
+                               style="display: block; width: 100%; text-align: center; background: linear-gradient(to right, #2c3e50, #34495e); color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; transition: all 0.3s; border: none;">
+                                Đặt vé ngay
+                            </a>
+                        </div>
                     </div>
             <?php
                 }
             } else {
-                echo '<p style="text-align: center; grid-column: 1/-1; color: #666;">Chưa có chuyến xe nào.</p>';
+                echo '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; background: white; border-radius: 8px; color: #666;">
+                        <i class="fas fa-bus-alt" style="font-size: 3rem; color: #ddd; margin-bottom: 1rem; display: block;"></i>
+                        Hiện tại chưa có chuyến xe nào sắp khởi hành.
+                      </div>';
             }
             ?>
         </div>

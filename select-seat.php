@@ -65,323 +65,60 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chọn Ghế - TMS VéXe</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-        }
-
-        .header {
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 1rem 2rem;
-        }
-
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .breadcrumb {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .steps {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .step-number {
-            width: 2rem;
-            height: 2rem;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-        }
-
-        .step.completed .step-number {
-            background: #22c55e;
-        }
-
-        .step.active .step-number {
-            background: #3b82f6;
-        }
-
-        .step.inactive .step-number {
-            background: #d1d5db;
-            color: #6b7280;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 1.5rem;
-        }
-
-        .card {
-            background: white;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-
-        .trip-info {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-
-        .driver-position {
-            text-align: center;
-            margin: 1rem 0;
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .driver-icon {
-            display: inline-block;
-            width: 3rem;
-            height: 2rem;
-            background: #fecdd3;
-            border-radius: 0.25rem;
-            margin-right: 0.5rem;
-        }
-
-        .seats-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 0.75rem;
-            max-width: 450px;
-            margin: 0 auto 2rem;
-        }
-
-        .seat {
-            aspect-ratio: 1;
-            border: 2px solid #22c55e;
-            border-radius: 0.5rem;
-            background: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-        }
-
-        .seat:hover:not(.booked) {
-            background: #f0fdf4;
-            transform: scale(1.05);
-        }
-
-        .seat.selected {
-            background: #3b82f6;
-            border-color: #3b82f6;
-            color: white;
-        }
-
-        .seat.booked {
-            background: #ea580c;
-            border-color: #ea580c;
-            color: white;
-            cursor: not-allowed;
-        }
-
-        .legend {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            font-size: 0.85rem;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .legend-box {
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 0.25rem;
-        }
-
-        .legend-box.available {
-            border: 2px solid #22c55e;
-            background: white;
-        }
-
-        .legend-box.selected {
-            background: #3b82f6;
-        }
-
-        .legend-box.booked {
-            background: #ea580c;
-        }
-
-        .summary-section {
-            margin-bottom: 1.5rem;
-        }
-
-        .summary-title {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .summary-text {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: #333;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #3b82f6;
-        }
-
-        .promo-section {
-            margin-bottom: 1.5rem;
-        }
-
-        .promo-input-group {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .promo-input {
-            flex: 1;
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: #3b82f6;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2563eb;
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: #ea580c;
-            font-size: 0.85rem;
-            padding: 0.25rem 0;
-        }
-
-        .price-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-
-        .total-price {
-            font-size: 1.25rem;
-            font-weight: bold;
-            color: #ea580c;
-        }
-
-        .btn-continue {
-            width: 100%;
-            padding: 0.75rem;
-            background: #d1d5db;
-            color: #6b7280;
-            cursor: not-allowed;
-        }
-
-        .btn-continue.active {
-            background: #22c55e;
-            color: white;
-            cursor: pointer;
-        }
-
-        .btn-continue.active:hover {
-            background: #16a34a;
-        }
-
-        @media (max-width: 768px) {
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .seats-grid {
-                gap: 0.5rem;
-                grid-template-columns: repeat(5, 1fr);
-            }
-
-            .legend {
-                grid-template-columns: 1fr;
-            }
-        }
+        /* GIỮ NGUYÊN CSS CŨ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; }
+        .header { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1rem 2rem; }
+        .header-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; color: #333; }
+        .breadcrumb { color: #666; font-size: 0.9rem; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .steps { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+        .step { display: flex; align-items: center; gap: 0.5rem; }
+        .step-number { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; }
+        .step.completed .step-number { background: #22c55e; }
+        .step.active .step-number { background: #3b82f6; }
+        .step.inactive .step-number { background: #d1d5db; color: #6b7280; }
+        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+        .card { background: white; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .trip-info { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+        .driver-position { text-align: center; margin: 1rem 0; color: #666; font-size: 0.9rem; }
+        .driver-icon { display: inline-block; width: 3rem; height: 2rem; background: #fecdd3; border-radius: 0.25rem; margin-right: 0.5rem; }
+        .seats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; max-width: 450px; margin: 0 auto 2rem; }
+        .seat { aspect-ratio: 1; border: 2px solid #22c55e; border-radius: 0.5rem; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; transition: all 0.2s; }
+        .seat:hover:not(.booked) { background: #f0fdf4; transform: scale(1.05); }
+        .seat.selected { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .seat.booked { background: #ea580c; border-color: #ea580c; color: white; cursor: not-allowed; }
+        .legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font-size: 0.85rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-box { width: 1.5rem; height: 1.5rem; border-radius: 0.25rem; }
+        .legend-box.available { border: 2px solid #22c55e; background: white; }
+        .legend-box.selected { background: #3b82f6; }
+        .legend-box.booked { background: #ea580c; }
+        .summary-section { margin-bottom: 1.5rem; }
+        .summary-title { font-weight: 600; margin-bottom: 0.5rem; }
+        .summary-text { color: #666; font-size: 0.9rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #333; }
+        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.9rem; }
+        .form-input:focus { outline: none; border-color: #3b82f6; }
+        .promo-section { margin-bottom: 1.5rem; }
+        .promo-input-group { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .promo-input { flex: 1; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.9rem; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .price-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .total-price { font-size: 1.25rem; font-weight: bold; color: #ea580c; }
+        .btn-continue { width: 100%; padding: 0.75rem; background: #d1d5db; color: #6b7280; cursor: not-allowed; }
+        .btn-continue.active { background: #22c55e; color: white; cursor: pointer; }
+        .btn-continue.active:hover { background: #16a34a; }
+        
+        /* Thêm style cho thông báo lỗi/thành công */
+        .promo-message { font-size: 0.85rem; margin-top: 0.25rem; }
+        .text-success { color: #22c55e; }
+        .text-error { color: #ea580c; }
     </style>
 </head>
 <body>
@@ -501,12 +238,17 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                         <input type="text" class="promo-input" id="promoCode" placeholder="Nhập mã khuyến mãi">
                         <button class="btn btn-primary" onclick="applyPromo()">Áp dụng</button>
                     </div>
+                    <div id="promoMessage" class="promo-message"></div>
                 </div>
 
                 <div class="summary-section" style="border-top: 1px solid #e5e7eb; padding-top: 1rem;">
                     <div class="price-row">
                         <span>Giá vé gốc:</span>
                         <span id="originalPrice">0 VNĐ</span>
+                    </div>
+                    <div class="price-row" id="discountRow" style="display:none;">
+                        <span>Giảm giá:</span>
+                        <span id="discountPrice" style="color: #22c55e;">-0 VNĐ</span>
                     </div>
                     <div class="price-row">
                         <span class="total-price">Tổng cộng:</span>
@@ -523,6 +265,10 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         const selectedSeats = [];
         const pricePerSeat = <?php echo $trip['price']; ?>;
         const tripId = <?php echo $trip_id; ?>;
+        
+        // Biến lưu thông tin giảm giá
+        let currentDiscount = 0;
+        let appliedPromoId = null;
 
         document.querySelectorAll('.seat:not(.booked)').forEach(seat => {
             seat.addEventListener('click', function() {
@@ -539,17 +285,37 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     selectedSeats.push(seatNumber);
                 }
                 
+                // Khi thay đổi ghế, reset mã giảm giá để đảm bảo tính đúng đắn (ví dụ: điều kiện đơn tối thiểu)
+                resetPromo();
                 updateSummary();
             });
         });
+
+        function resetPromo() {
+            currentDiscount = 0;
+            appliedPromoId = null;
+            document.getElementById('promoCode').value = '';
+            document.getElementById('promoMessage').innerHTML = '';
+            document.getElementById('discountRow').style.display = 'none';
+        }
 
         function updateSummary() {
             const display = document.getElementById('selectedSeatsDisplay');
             display.textContent = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'Chưa chọn ghế nào';
             
-            const totalPrice = selectedSeats.length * pricePerSeat;
-            document.getElementById('originalPrice').textContent = totalPrice.toLocaleString('vi-VN') + ' VNĐ';
-            document.getElementById('totalPrice').textContent = totalPrice.toLocaleString('vi-VN') + ' VNĐ';
+            const originalTotal = selectedSeats.length * pricePerSeat;
+            const finalTotal = originalTotal - currentDiscount;
+
+            document.getElementById('originalPrice').textContent = originalTotal.toLocaleString('vi-VN') + ' VNĐ';
+            
+            if (currentDiscount > 0) {
+                document.getElementById('discountRow').style.display = 'flex';
+                document.getElementById('discountPrice').textContent = '-' + currentDiscount.toLocaleString('vi-VN') + ' VNĐ';
+            } else {
+                document.getElementById('discountRow').style.display = 'none';
+            }
+
+            document.getElementById('totalPrice').textContent = (finalTotal > 0 ? finalTotal : 0).toLocaleString('vi-VN') + ' VNĐ';
             
             const continueBtn = document.getElementById('continueBtn');
             if (selectedSeats.length > 0) {
@@ -563,9 +329,49 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
         function applyPromo() {
             const promoCode = document.getElementById('promoCode').value.trim();
-            if (promoCode) {
-                alert('Chức năng áp dụng mã khuyến mãi đang được phát triển');
+            const messageDiv = document.getElementById('promoMessage');
+            
+            if (!promoCode) {
+                messageDiv.innerHTML = '<span class="text-error">Vui lòng nhập mã khuyến mãi</span>';
+                return;
             }
+
+            if (selectedSeats.length === 0) {
+                messageDiv.innerHTML = '<span class="text-error">Vui lòng chọn ghế trước khi áp dụng mã</span>';
+                return;
+            }
+
+            const currentTotal = selectedSeats.length * pricePerSeat;
+
+            // Gọi AJAX kiểm tra mã
+            fetch('check_promo.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: promoCode,
+                    total_amount: currentTotal
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentDiscount = data.discount_amount;
+                    appliedPromoId = data.promotion_id;
+                    messageDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    updateSummary();
+                } else {
+                    currentDiscount = 0;
+                    appliedPromoId = null;
+                    messageDiv.innerHTML = `<span class="text-error">${data.message}</span>`;
+                    updateSummary();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.innerHTML = '<span class="text-error">Có lỗi xảy ra, vui lòng thử lại</span>';
+            });
         }
 
         function proceedToPayment() {
@@ -597,6 +403,13 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 email: email,
                 phone: phone
             });
+
+            // Nếu có áp dụng mã khuyến mãi, truyền thêm ID
+            if (appliedPromoId) {
+                params.append('promotion_id', appliedPromoId);
+                params.append('discount_amount', currentDiscount);
+            }
+            
             window.location.href = 'payment.php?' + params.toString();
         }
     </script>

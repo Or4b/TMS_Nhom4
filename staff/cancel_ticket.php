@@ -1,256 +1,199 @@
 <?php
+// FILE: staff/cancel_ticket.php
 session_start();
 require_once dirname(__DIR__) . '/includes/config.php';
 
-// Kiểm tra session
-if (!isset($_SESSION['staff_logged_in']) || $_SESSION['staff_logged_in'] !== true) {
-    header("Location: ../login.php"); 
-    exit();
-}
-
-$staff_id = $_SESSION['staff_id'] ?? null;
+if (!isset($_SESSION['staff_logged_in'])) { header("Location: ../login.php"); exit(); }
 $staff_name = $_SESSION['staff_name'] ?? 'Nhân viên';
 
 $message = '';
 $ticket_info = null; 
 
-// --- 1. LOGIC TÌM KIẾM VÉ ---
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['search_ticket'])) {
-    $search_id = trim($_POST['booking_id']);
+// --- 1. LẤY DANH SÁCH CÁC VÉ ĐANG YÊU CẦU HỦY ---
+$req_sql = "SELECT b.booking_id, b.seat_numbers, b.total_price, 
+                   u.full_name, u.phone, 
+                   p1.province_name AS origin, p2.province_name AS destination,
+                   t.departure_time
+            FROM bookings b
+            JOIN users u ON b.user_id = u.id
+            JOIN trips t ON b.trip_id = t.id
+            JOIN provinces p1 ON t.departure_province_id = p1.id
+            JOIN provinces p2 ON t.destination_province_id = p2.id
+            WHERE b.cancel_request = 1 AND b.status != 'cancelled'
+            ORDER BY b.booking_date ASC";
+$request_list = $pdo->query($req_sql)->fetchAll(PDO::FETCH_ASSOC);
 
+
+// --- 2. XỬ LÝ TÌM KIẾM CỤ THỂ ---
+// Nhận ID tự động từ Dashboard hoặc từ danh sách bên dưới
+$auto_id = $_GET['auto_id'] ?? '';
+
+// Nếu có auto_id, tự động kích hoạt tìm kiếm
+if($auto_id && $_SERVER["REQUEST_METHOD"] != "POST") {
+    $_POST['search_ticket'] = 1;
+    $_POST['booking_id'] = $auto_id;
+}
+
+// LOGIC TÌM KIẾM
+if (isset($_POST['search_ticket']) || ($auto_id && $_SERVER["REQUEST_METHOD"] != "POST")) {
+    $search_id = trim($_POST['booking_id'] ?? $auto_id);
     if (!empty($search_id)) {
-        try {
-            // SỬA: Dùng booking_id, province_name, total_price, quantity, join users để lấy tên
-            $sql = "SELECT b.booking_id AS id, b.seat_numbers, b.total_price AS total_amount, b.quantity AS number_of_seats, b.status,
-                           t.departure_time, 
-                           p1.province_name AS origin, p2.province_name AS destination,
-                           u.full_name AS passenger_name, u.phone
-                    FROM bookings b
-                    JOIN users u ON b.user_id = u.id
-                    JOIN trips t ON b.trip_id = t.id
-                    JOIN provinces p1 ON t.departure_province_id = p1.id
-                    JOIN provinces p2 ON t.destination_province_id = p2.id
-                    WHERE b.booking_id = ? AND b.status != 'cancelled'
-                    LIMIT 1";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$search_id]);
-            $ticket_info = $stmt->fetch(PDO::FETCH_ASSOC);
+        $sql = "SELECT b.booking_id AS id, b.seat_numbers, b.total_price AS total_amount, b.quantity AS number_of_seats, 
+                       b.status, b.cancel_request, b.payment_status,
+                       t.departure_time, p1.province_name AS origin, p2.province_name AS destination,
+                       u.full_name AS passenger_name, u.phone
+                FROM bookings b
+                JOIN users u ON b.user_id = u.id
+                JOIN trips t ON b.trip_id = t.id
+                JOIN provinces p1 ON t.departure_province_id = p1.id
+                JOIN provinces p2 ON t.destination_province_id = p2.id
+                WHERE b.booking_id = ? LIMIT 1";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$search_id]);
+        $ticket_info = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$ticket_info) {
-                $message = '<div class="alert alert-warning">Không tìm thấy vé hoặc vé đã bị hủy.</div>';
-            }
-
-        } catch (PDOException $e) {
-            $message = '<div class="alert alert-danger">Lỗi tìm kiếm: ' . $e->getMessage() . '</div>';
-        }
-    } else {
-        $message = '<div class="alert alert-warning">Vui lòng nhập Mã vé.</div>';
+        if (!$ticket_info) $message = '<div class="alert alert-warning">Không tìm thấy vé.</div>';
     }
 }
 
-// --- 2. LOGIC HỦY VÉ ---
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['cancel_action']) && isset($_POST['booking_id'])) {
+// --- 3. LOGIC HỦY VÉ ---
+if (isset($_POST['cancel_action'])) {
     $booking_id = $_POST['booking_id'];
-
-    // SỬA: Lấy đúng cột total_price, quantity, booking_id
-    $sql_check = "SELECT b.total_price AS total_amount, b.quantity AS number_of_seats, b.payment_status,
-                          t.id AS trip_id, t.departure_time
-                    FROM bookings b
-                    JOIN trips t ON b.trip_id = t.id
-                    WHERE b.booking_id = ?";
-
-    $stmt = $pdo->prepare($sql_check);
-    $stmt->execute([$booking_id]);
-    $current_ticket = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Nếu vé tồn tại và chưa hoàn tiền (hoặc logic tùy chỉnh của bạn)
-    if ($current_ticket) { 
-        $departure_time = strtotime($current_ticket['departure_time']);
-        $current_time = time();
-        $total_amount = $current_ticket['total_amount'];
+    try {
+        $pdo->beginTransaction();
         
-        $min_cancellation_time = 2 * 3600; // 2 giờ
-        $time_diff = $departure_time - $current_time;
-        $time_diff_hours = floor($time_diff / 3600);
-
-        if ($time_diff < $min_cancellation_time) {
-            $message = '<div class="alert alert-danger">Không thể hủy vé! Yêu cầu hủy phải trước giờ khởi hành ít nhất 2 giờ.</div>';
-        } else {
-            // Tính toán hoàn tiền
-            $refund_rate = 0;
-            if ($time_diff_hours >= 24) {
-                $refund_rate = 0.80; 
-            } elseif ($time_diff_hours >= 2) {
-                $refund_rate = 0.50; 
-            }
-            
-            $refund_amount = $total_amount * $refund_rate;
-            
-            try {
-                $pdo->beginTransaction();
-                
-                // SỬA: Cập nhật status. Bỏ 'refund_amount', 'updated_by' vì bảng bookings trong DB không có cột này.
-                // Nếu muốn lưu refund_amount, bạn cần vào PHPMyAdmin thêm cột này vào bảng bookings.
-                $sql_update_booking = "UPDATE bookings SET status = 'cancelled', payment_status = 'failed' WHERE booking_id = ?";
-                $pdo->prepare($sql_update_booking)->execute([$booking_id]);
-                
-                // Hoàn lại ghế
-                $pdo->prepare("UPDATE trips SET available_seats = available_seats + ? WHERE id = ?")
-                    ->execute([$current_ticket['number_of_seats'], $current_ticket['trip_id']]);
-                
-                $pdo->commit();
-                $message = '<div class="alert alert-success">Hủy vé thành công! Số tiền cần hoàn lại khách: ' . number_format($refund_amount) . ' VNĐ (' . ($refund_rate * 100) . '%).</div>';
-            } catch (PDOException $e) {
-                if ($pdo->inTransaction()) { $pdo->rollBack(); }
-                $message = '<div class="alert alert-danger">Lỗi giao dịch hủy vé: ' . $e->getMessage() . '</div>';
-            }
+        // [ĐÃ SỬA LỖI] Cập nhật status và reset yêu cầu hủy
+        $sql_update = "UPDATE bookings SET status = 'cancelled', cancel_request = 0, payment_status = 'failed' WHERE booking_id = ?";
+        $stmt_up = $pdo->prepare($sql_update); // Sửa biến $sql_up thành $sql_update
+        $stmt_up->execute([$booking_id]);
+        
+        // Trả ghế
+        $stmt_info = $pdo->prepare("SELECT quantity, trip_id FROM bookings WHERE booking_id = ?");
+        $stmt_info->execute([$booking_id]);
+        $tk = $stmt_info->fetch();
+        if($tk) {
+            $pdo->prepare("UPDATE trips SET available_seats = available_seats + ? WHERE id = ?")->execute([$tk['quantity'], $tk['trip_id']]);
         }
-    } else {
-        $message = '<div class="alert alert-danger">Lỗi: Không tìm thấy vé.</div>';
+        
+        $pdo->commit();
+        $message = '<div class="alert alert-success">Đã hủy vé #' . $booking_id . ' thành công!</div>';
+        $ticket_info = null; // Reset form tìm kiếm
+        
+        // Refresh lại danh sách yêu cầu
+        $request_list = $pdo->query($req_sql)->fetchAll(PDO::FETCH_ASSOC);
+
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        $message = '<div class="alert alert-danger">Lỗi: ' . $e->getMessage() . '</div>';
     }
 }
 
-include 'includes/header_staff.php'; 
+include 'includes/header_staff.php';
 ?>
 
-<h5 class="fw-bold mb-4 text-dark"><i class="fas fa-times-circle me-2"></i> Hỗ trợ Hủy Vé Khách Hàng</h5>
-
-<?php echo $message; ?>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-warning text-dark"><i class="fas fa-search me-2"></i> Tìm Kiếm Vé</div>
-    <div class="card-body">
-        <form method="POST" action="cancel_ticket.php">
-            <input type="hidden" name="search_ticket" value="1">
-            <div class="input-group">
-                <input type="text" class="form-control" placeholder="Nhập ID vé cần hủy" name="booking_id" required 
-                        value="<?php echo htmlspecialchars($_POST['booking_id'] ?? ''); ?>">
-                <button type="submit" class="btn btn-warning text-dark"><i class="fas fa-search me-2"></i> Tìm Kiếm</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<?php if ($ticket_info): ?>
-    <?php
-    $departure_time_ts = isset($ticket_info['departure_time']) ? strtotime($ticket_info['departure_time']) : null;
-    $current_time_ts = time();
-    $time_diff_hours_estimate = ($departure_time_ts) ? floor(($departure_time_ts - $current_time_ts) / 3600) : null;
+<div class="container-fluid">
+    <h5 class="fw-bold mb-4 text-dark"><i class="fas fa-user-times me-2"></i> Xử Lý Hủy Vé</h5>
     
-    $refund_rate_estimate = 0; 
-    if ($time_diff_hours_estimate >= 24) {
-        $refund_rate_estimate = 0.80; 
-    } elseif ($time_diff_hours_estimate >= 2) {
-        $refund_rate_estimate = 0.50;
-    }
-    ?>
+    <?= $message ?>
 
-<div class="card shadow-sm mb-4 border-danger">
-    <div class="card-header bg-danger text-white"><i class="fas fa-exclamation-triangle me-2"></i> Thông Tin Vé Cần Hủy: ID #<?php echo $ticket_info['id']; ?></div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <h6>Chi Tiết Vé Đặt</h6>
-                <p><strong>Tên Khách Hàng:</strong> <?php echo htmlspecialchars($ticket_info['passenger_name'] ?? 'N/A'); ?></p>
-                <p><strong>SĐT:</strong> <?php echo htmlspecialchars($ticket_info['phone'] ?? 'N/A'); ?></p>
-                <p><strong>Tuyến:</strong> <?php echo htmlspecialchars($ticket_info['origin'] . ' -> ' . $ticket_info['destination']); ?></p>
-                <p><strong>Ghế Đặt:</strong> <?php echo htmlspecialchars($ticket_info['seat_numbers'] ?? 'N/A'); ?> (<?php echo $ticket_info['number_of_seats']; ?> ghế)</p>
-                <p><strong>Giá trị Vé:</strong> <?php echo number_format($ticket_info['total_amount']); ?> VNĐ</p>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">Tìm kiếm thủ công</div>
+        <div class="card-body">
+            <form method="POST" action="cancel_ticket.php" class="row g-2 align-items-center">
+                <div class="col-auto"><label class="fw-bold">Nhập ID vé:</label></div>
+                <div class="col-auto">
+                    <input type="text" class="form-control" name="booking_id" value="<?= htmlspecialchars($_POST['booking_id'] ?? $auto_id) ?>" placeholder="VD: 12">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" name="search_ticket" class="btn btn-primary"><i class="fas fa-search"></i> Tìm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <?php if ($ticket_info): ?>
+    <div class="card shadow-sm border-danger mb-5">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold">Thông tin vé #<?= $ticket_info['id'] ?></h6>
+            <?php if($ticket_info['cancel_request'] == 1): ?>
+                <span class="badge bg-warning text-dark"><i class="fas fa-bell animate-pulse"></i> Khách đang yêu cầu hủy</span>
+            <?php endif; ?>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Khách hàng:</strong> <?= $ticket_info['passenger_name'] ?> <br> <span class="text-muted small"><?= $ticket_info['phone'] ?></span></p>
+                    <p><strong>Hành trình:</strong> <?= $ticket_info['origin'] ?> <i class="fas fa-arrow-right mx-1"></i> <?= $ticket_info['destination'] ?></p>
+                    <p><strong>Khởi hành:</strong> <?= date('H:i d/m/Y', strtotime($ticket_info['departure_time'])) ?></p>
+                </div>
+                <div class="col-md-6 border-start">
+                    <p><strong>Ghế:</strong> <?= $ticket_info['seat_numbers'] ?> (SL: <?= $ticket_info['number_of_seats'] ?>)</p>
+                    <p><strong>Tổng tiền:</strong> <span class="text-danger fw-bold"><?= number_format($ticket_info['total_amount']) ?> đ</span></p>
+                    <p><strong>Trạng thái TT:</strong> <?= $ticket_info['payment_status'] == 'paid' ? '<span class="text-success fw-bold">Đã thanh toán</span>' : '<span class="text-danger">Chưa/Tại quầy</span>' ?></p>
+                </div>
             </div>
-            <div class="col-md-6 border-start">
-                <h6>Quy Định Hủy & Hoàn Tiền</h6>
-                <?php if ($departure_time_ts): ?>
-                    <p><strong>Giờ Khởi Hành:</strong> <?php echo date('H:i:s d/m/Y', $departure_time_ts); ?></p>
-                    <p><strong>Thời Gian Còn Lại:</strong> <span class="<?php echo ($time_diff_hours_estimate < 2) ? 'text-danger fw-bold' : 'text-success'; ?>">
-                        <?php echo max(0, $time_diff_hours_estimate); ?> giờ
-                    </span></p>
-                <?php else: ?>
-                    <p><strong>Giờ Khởi Hành:</strong> N/A</p>
-                <?php endif; ?>
+            <div class="text-end mt-3 border-top pt-3">
+                
+                <form method="POST" class="d-inline" onsubmit="return confirm('XÁC NHẬN: Bạn có chắc chắn muốn hủy vé này không? Hành động này sẽ hoàn lại ghế trống.');">
+                    <input type="hidden" name="cancel_action" value="1">
+                    <input type="hidden" name="booking_id" value="<?= $ticket_info['id'] ?>">
+                    <button class="btn btn-danger fw-bold"><i class="fas fa-trash-alt me-2"></i> XÁC NHẬN HỦY VÉ</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
-                <hr>
-                <?php if ($time_diff_hours_estimate >= 2): ?>
-                    <div class="alert alert-info">Ước tính hoàn: **<?php echo $refund_rate_estimate * 100; ?>%** (Khoảng **<?php echo number_format($ticket_info['total_amount'] * $refund_rate_estimate); ?> VNĐ**)</div>
-                    <form method="POST" action="cancel_ticket.php" onsubmit="return confirm('Xác nhận hủy vé ID #<?php echo $ticket_info['id']; ?>?');">
-                        <input type="hidden" name="cancel_action" value="1">
-                        <input type="hidden" name="booking_id" value="<?php echo $ticket_info['id']; ?>">
-                        <button type="submit" class="btn btn-danger w-100 mt-3">
-                            <i class="fas fa-trash-alt me-2"></i> TIẾN HÀNH HỦY VÉ
-                        </button>
-                    </form>
-                <?php else: ?>
-                    <div class="alert alert-danger mt-3 text-center">Vé **không đủ điều kiện hủy** (Chưa đủ 2 giờ).</div>
-                <?php endif; ?>
+    <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark fw-bold">
+            <i class="fas fa-list-ul me-2"></i> Danh Sách Chờ Hủy (<?= count($request_list) ?>)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Khách hàng</th>
+                            <th>Hành trình</th>
+                            <th>Ngày đi</th>
+                            <th>Ghế</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($request_list)): ?>
+                            <tr><td colspan="6" class="text-center p-4 text-muted">Hiện không có yêu cầu hủy nào.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($request_list as $req): ?>
+                            <tr>
+                                <td><strong>#<?= $req['booking_id'] ?></strong></td>
+                                <td>
+                                    <?= $req['full_name'] ?><br>
+                                    <small class="text-muted"><?= $req['phone'] ?></small>
+                                </td>
+                                <td><?= $req['origin'] ?> <i class="fas fa-arrow-right small"></i> <?= $req['destination'] ?></td>
+                                <td><?= date('d/m H:i', strtotime($req['departure_time'])) ?></td>
+                                <td><?= $req['seat_numbers'] ?></td>
+                                <td class="text-end">
+                                    <a href="cancel_ticket.php?auto_id=<?= $req['booking_id'] ?>" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-search me-1"></i> Xem & Xử lý
+                                    </a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
-<?php endif; ?>
 
-<?php 
-// --- 3. DANH SÁCH VÉ ĐÃ HỦY ---
-// SỬA: Sửa tên cột p1.name -> p1.province_name, b.id -> b.booking_id, v.v...
-$sql_cancelled = "SELECT b.booking_id AS id, b.seat_numbers, b.total_price AS total_amount, 
-                         t.departure_time, 
-                         p1.province_name AS origin, p2.province_name AS destination,
-                         u.full_name AS passenger_name
-                    FROM bookings b
-                    JOIN users u ON b.user_id = u.id
-                    JOIN trips t ON b.trip_id = t.id
-                    JOIN provinces p1 ON t.departure_province_id = p1.id
-                    JOIN provinces p2 ON t.destination_province_id = p2.id
-                    WHERE b.status = 'cancelled'
-                    ORDER BY b.booking_id DESC
-                    LIMIT 20"; // Giới hạn 20 vé gần nhất để tránh lag
-
-try {
-    $stmt_cancelled = $pdo->prepare($sql_cancelled);
-    $stmt_cancelled->execute();
-    $cancelled_list = $stmt_cancelled->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    echo '<div class="alert alert-danger">Lỗi tải danh sách: ' . $e->getMessage() . '</div>';
-    $cancelled_list = [];
-}
-?>
-
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-success text-white"><i class="fas fa-check-circle me-2"></i> Vé Đã Hủy Gần Đây</div>
-            <div class="card-body p-0">
-                <?php if (empty($cancelled_list)): ?>
-                    <p class="p-3 text-center text-muted">Chưa có vé nào bị hủy.</p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover mb-0">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Khách</th>
-                                    <th>Tuyến</th>
-                                    <th>Giờ Khởi Hành</th>
-                                    <th>Ghế</th>
-                                    <th>Trạng Thái</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($cancelled_list as $row): ?>
-                                <tr>
-                                    <td>#<?= $row['id'] ?></td>
-                                    <td><?= htmlspecialchars($row['passenger_name'] ?? 'N/A') ?></td>
-                                    <td><?= htmlspecialchars($row['origin']) ?> → <?= htmlspecialchars($row['destination']) ?></td>
-                                    <td><?= date('H:i d/m/Y', strtotime($row['departure_time'])) ?></td>
-                                    <td><?= htmlspecialchars($row['seat_numbers'] ?? 'N/A') ?></td>
-                                    <td><span class="badge bg-danger">Đã hủy</span></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
+<style>
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+.animate-pulse { animation: pulse 1s infinite; }
+</style>
 
 <?php include 'includes/footer_staff.php'; ?>

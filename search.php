@@ -1,29 +1,26 @@
 <?php
 session_start();
-// 1. KẾT NỐI DATABASE
-$conn = new mysqli("localhost", "root", "", "tms_nhom4");
-$conn->set_charset("utf8mb4");
-if ($conn->connect_error) {
-    die("Kết nối thất bại: " . $conn->connect_error);
-}
+require_once 'includes/config.php';
 
 // Lấy tham số
 $origin = isset($_GET['origin']) ? intval($_GET['origin']) : 0;
 $destination = isset($_GET['destination']) ? intval($_GET['destination']) : 0;
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-// Lấy loại vé
+// Lấy loại vé (mặc định one_way)
 $search_trip_type = isset($_GET['trip_type']) ? $_GET['trip_type'] : 'one_way';
 
 // Lấy tên địa điểm
 $origin_name = '';
 $destination_name = '';
 if ($origin > 0) {
-    $result = $conn->query("SELECT province_name FROM provinces WHERE id = $origin");
-    if ($row = $result->fetch_assoc()) $origin_name = $row['province_name'];
+    $stmt = $pdo->prepare("SELECT province_name FROM provinces WHERE id = ?");
+    $stmt->execute([$origin]);
+    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) $origin_name = $row['province_name'];
 }
 if ($destination > 0) {
-    $result = $conn->query("SELECT province_name FROM provinces WHERE id = $destination");
-    if ($row = $result->fetch_assoc()) $destination_name = $row['province_name'];
+    $stmt = $pdo->prepare("SELECT province_name FROM provinces WHERE id = ?");
+    $stmt->execute([$destination]);
+    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) $destination_name = $row['province_name'];
 }
 
 // Format ngày hiển thị
@@ -36,29 +33,31 @@ if ($date) {
 
 $trips = [];
 if ($origin > 0 && $destination > 0) {
-    // --- 1. LẤY CHUYẾN THẬT ---
-    $query = "SELECT t.id AS schedule_id, t.price AS base_price,
+    // --- 1. LẤY CHUYẾN THẬT (CÓ LỌC THEO LOẠI VÉ) ---
+    // Sửa đổi: Thêm điều kiện AND t.ticket_type = ?
+    $stmt = $pdo->prepare("SELECT t.id AS schedule_id, t.price AS base_price,
                      o.province_name AS origin, d.province_name AS destination,
                      t.departure_time, t.total_seats, t.available_seats,
                      t.ticket_type, t.return_time
               FROM trips t
               JOIN provinces o ON t.departure_province_id = o.id
               JOIN provinces d ON t.destination_province_id = d.id
-              WHERE t.departure_province_id = $origin 
-              AND t.destination_province_id = $destination
-              AND DATE(t.departure_time) = '$date'
+              WHERE t.departure_province_id = ? 
+              AND t.destination_province_id = ?
+              AND DATE(t.departure_time) = ?
               AND t.status = 'scheduled'
-              ORDER BY t.departure_time ASC";
+              AND t.ticket_type = ? 
+              ORDER BY t.departure_time ASC");
     
-    $result = $conn->query($query);
-    if ($result && $result->num_rows > 0) {
-        while ($row = $result->fetch_assoc()) {
-            $row['is_virtual'] = false;
-            $trips[] = $row;
-        }
+    // Truyền thêm tham số $search_trip_type vào execute
+    $stmt->execute([$origin, $destination, $date, $search_trip_type]);
+    
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $row['is_virtual'] = false;
+        $trips[] = $row;
     }
 
-    // --- 2. TẠO CHUYẾN ẢO (RANDOM HÓA TOÀN DIỆN) ---
+    // --- 2. TẠO CHUYẾN ẢO ---
     if (strtotime($date) >= strtotime(date('Y-m-d'))) {
         $virtual_times = ['06:30', '09:15', '12:45', '15:30', '19:15', '22:00'];
         
@@ -68,32 +67,27 @@ if ($origin > 0 && $destination > 0) {
 
             $is_duplicate = false;
             foreach ($trips as $real) {
-                if (abs(strtotime($real['departure_time']) - strtotime($v_datetime)) < 1800) {
+                // Chỉ check trùng giờ với chuyến thật (không check trùng với chuyến ảo khác)
+                if (!$real['is_virtual'] && abs(strtotime($real['departure_time']) - strtotime($v_datetime)) < 1800) {
                     $is_duplicate = true; break;
                 }
             }
 
             if (!$is_duplicate) {
-                // Random giá vé (250k - 450k)
+                // Random giá vé
                 $random_price = rand(25, 45) * 10000;
-                // Random ghế (15 - 42)
+                // Random ghế
                 $random_seats = rand(15, 42);
                 
-                // XỬ LÝ LOGIC KHỨ HỒI (RANDOM NGÀY VỀ)
+                // XỬ LÝ LOGIC KHỨ HỒI ẢO
                 $v_return_time = null;
+                // Nếu người dùng tìm vé khứ hồi thì chuyến ảo cũng phải có ngày về
                 if ($search_trip_type == 'round_trip') {
-                    // [RANDOM] Số ngày ở lại: từ 1 đến 4 ngày
                     $stay_days = rand(1, 4); 
-                    
-                    // [RANDOM] Giờ về: từ 06:00 đến 21:00
                     $return_hour = rand(6, 21); 
                     $return_minute = rand(0, 59);
-                    
-                    // Tính toán timestamp ngày về
                     $dep_ts = strtotime($v_datetime);
-                    $return_ts = $dep_ts + ($stay_days * 24 * 3600); // Cộng thêm số ngày
-                    
-                    // Ghép thành chuỗi thời gian hoàn chỉnh
+                    $return_ts = $dep_ts + ($stay_days * 24 * 3600);
                     $v_return_time = date('Y-m-d', $return_ts) . " " . sprintf("%02d:%02d:00", $return_hour, $return_minute);
                 }
 
@@ -108,13 +102,23 @@ if ($origin > 0 && $destination > 0) {
                     'is_virtual' => true,
                     'origin_id' => $origin,
                     'dest_id' => $destination,
-                    'ticket_type' => $search_trip_type, 
+                    'ticket_type' => $search_trip_type, // Gán đúng loại vé người dùng tìm
                     'return_time' => $v_return_time
                 ];
             }
         }
         
+        // --- 3. SẮP XẾP LẠI (QUAN TRỌNG) ---
         usort($trips, function($a, $b) {
+            // Ưu tiên 1: Chuyến thật (is_virtual = false) xếp trước
+            // is_virtual: false < true (trong PHP false ~ 0, true ~ 1)
+            if ($a['is_virtual'] !== $b['is_virtual']) {
+                return $a['is_virtual'] ? 1 : -1; 
+                // Nếu a là ảo (1) -> trả về 1 (lớn hơn) -> xếp sau
+                // Nếu a là thật (0) -> trả về -1 (nhỏ hơn) -> xếp trước
+            }
+            
+            // Ưu tiên 2: Xếp theo thời gian tăng dần
             return strtotime($a['departure_time']) - strtotime($b['departure_time']);
         });
     }
@@ -312,4 +316,3 @@ if ($origin > 0 && $destination > 0) {
     </footer>
 </body>
 </html>
-<?php $conn->close(); ?>

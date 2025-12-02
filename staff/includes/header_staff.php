@@ -47,7 +47,7 @@
             <h5 class="mb-0 text-dark fw-bold">Dashboard Nhân Viên</h5>
             <div class="d-flex align-items-center">
                 <span class="me-3 text-secondary">Xin chào, **<?php echo $staff_name; ?>**</span>
-                <a href="../../login.php" class="btn btn-sm btn-outline-danger">
+                <a href="../logout.php" class="btn btn-sm btn-outline-danger">
                     <i class="fas fa-sign-out-alt me-1"></i> Đăng xuất
                 </a>
             </div>

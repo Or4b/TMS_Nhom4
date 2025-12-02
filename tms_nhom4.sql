@@ -3,12 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 28, 2025 at 04:41 PM
+-- Generation Time: Dec 02, 2025 at 12:27 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
-CREATE DATABASE tms_nhom4 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE tms_nhom4;
--- Đã thêm tạo bản
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -41,16 +38,24 @@ CREATE TABLE `bookings` (
   `total_price` decimal(10,2) NOT NULL,
   `seat_numbers` varchar(255) DEFAULT NULL,
   `status` enum('pending','confirmed','cancelled','completed') NOT NULL DEFAULT 'pending',
-  `payment_status` enum('pending','paid','failed') NOT NULL DEFAULT 'pending'
+  `payment_status` enum('pending','paid','failed') NOT NULL DEFAULT 'pending',
+  `payment_method` enum('online','counter') DEFAULT 'online',
+  `cancel_request` tinyint(1) NOT NULL DEFAULT 0,
+  `staff_user_id` int(11) DEFAULT NULL,
+  `confirmation_time` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `bookings`
 --
 
-INSERT INTO `bookings` (`booking_id`, `user_id`, `trip_id`, `promotion_id`, `ticket_type`, `booking_date`, `quantity`, `total_price`, `seat_numbers`, `status`, `payment_status`) VALUES
-(1, 4, 1, NULL, 'one_way', '2025-11-28 15:39:56', 2, 700000.00, '1,2', 'confirmed', 'paid'),
-(2, 5, 2, NULL, 'round_trip', '2025-11-28 15:39:56', 1, 280000.00, '5', 'pending', 'pending');
+INSERT INTO `bookings` (`booking_id`, `user_id`, `trip_id`, `promotion_id`, `ticket_type`, `booking_date`, `quantity`, `total_price`, `seat_numbers`, `status`, `payment_status`, `payment_method`, `cancel_request`, `staff_user_id`, `confirmation_time`) VALUES
+(1, 4, 1, NULL, 'one_way', '2025-11-28 15:39:56', 2, 700000.00, '1,2', 'confirmed', 'paid', 'online', 0, NULL, NULL),
+(3, 10, 5, NULL, 'one_way', '2025-12-02 10:28:10', 1, 200000.00, 'A1', 'pending', 'pending', 'counter', 0, NULL, NULL),
+(4, 10, 5, NULL, 'one_way', '2025-12-02 10:28:18', 1, 200000.00, 'A1', 'pending', 'paid', '', 0, NULL, NULL),
+(5, 10, 10, NULL, 'one_way', '2025-12-02 10:29:36', 1, 400000.00, 'A1', 'pending', 'paid', '', 0, NULL, NULL),
+(6, 10, 11, NULL, 'one_way', '2025-12-02 10:42:36', 1, 380000.00, 'A1', 'pending', 'paid', '', 0, NULL, NULL),
+(7, 10, 14, NULL, 'one_way', '2025-12-02 10:54:43', 1, 300000.00, 'C3', 'pending', 'pending', 'counter', 1, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -109,7 +114,8 @@ INSERT INTO `promotions` (`id`, `promotion_code`, `promotion_name`, `description
 (1, 'WELCOME2024', 'Khuyến mãi chào năm mới', 'Giảm giá cho khách hàng đặt vé', 'percentage', 10.00, 200000.00, 50000.00, '2024-01-01', '2025-12-31', 100, 15, 'active', '2025-11-26 04:15:16'),
 (2, 'SUMMER50K', 'Giảm 50K mùa hè', 'Giảm trực tiếp 50K cho đơn hàng từ 300K', 'fixed', 50000.00, 300000.00, 50000.00, '2024-06-01', '2025-08-31', 200, 45, 'active', '2025-11-26 04:15:16'),
 (3, 'FIRSTTRIP', 'Giảm giá chuyến đầu tiên', 'Dành cho khách hàng mới đặt chuyến đầu tiên', 'percentage', 15.00, 100000.00, 75000.00, '2024-01-01', '2025-12-31', NULL, 23, 'active', '2025-11-26 04:15:16'),
-(4, 'VIP20', 'Giảm 20% cho khách VIP', 'Chương trình dành cho khách hàng thân thiết', 'percentage', 20.00, 500000.00, 100000.00, '2024-01-01', '2025-12-31', 50, 12, 'active', '2025-11-26 04:15:16');
+(4, 'VIP20', 'Giảm 20% cho khách VIP', 'Chương trình dành cho khách hàng thân thiết', 'percentage', 20.00, 500000.00, 100000.00, '2024-01-01', '2025-12-31', 50, 12, 'active', '2025-11-26 04:15:16'),
+(5, 'test1', 'test', '', 'fixed', 36000.00, 3.00, NULL, '2025-12-02', '2025-12-30', NULL, 0, 'active', '2025-12-02 11:04:29');
 
 -- --------------------------------------------------------
 
@@ -171,14 +177,12 @@ INSERT INTO `provinces` (`id`, `province_name`, `status`, `created_at`) VALUES
 --
 
 CREATE TABLE `staff` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `user_id` int NOT NULL,
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
   `salary` decimal(10,2) NOT NULL,
   `hire_date` date NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `staff`
@@ -214,13 +218,16 @@ CREATE TABLE `trips` (
 
 INSERT INTO `trips` (`id`, `departure_province_id`, `destination_province_id`, `departure_time`, `price`, `available_seats`, `total_seats`, `status`, `ticket_type`, `return_time`, `created_at`) VALUES
 (1, 27, 25, '2026-01-30 07:00:00', 350000.00, 15, 20, 'cancelled', 'one_way', NULL, '2025-11-26 04:15:16'),
-(2, 27, 24, '2026-02-01 21:00:00', 280000.00, 8, 12, 'paused', 'round_trip', '2025-02-03 21:00:00', '2025-11-26 04:15:16'),
-(3, 27, 28, '2026-02-02 08:30:00', 120000.00, 25, 30, 'paused', 'one_way', NULL, '2025-11-26 04:15:16'),
 (4, 27, 30, '2026-02-02 06:00:00', 180000.00, 18, 25, 'paused', 'round_trip', '2025-02-04 06:00:00', '2025-11-26 04:15:16'),
-(5, 27, 29, '2026-02-03 09:00:00', 200000.00, 10, 16, 'scheduled', 'one_way', NULL, '2025-11-26 04:15:16'),
-(6, 34, 4, '2025-11-26 10:00:00', 300000.00, 45, 45, 'cancelled', 'one_way', NULL, '2025-11-26 06:25:13'),
-(8, 33, 16, '2025-11-29 06:30:00', 250000.00, 43, 45, 'cancelled', 'one_way', NULL, '2025-11-28 14:46:13'),
-(9, 16, 30, '2025-11-29 06:30:00', 450000.00, 44, 45, 'scheduled', 'one_way', NULL, '2025-11-28 15:01:43');
+(5, 27, 29, '2026-02-03 09:00:00', 200000.00, 8, 16, 'scheduled', 'one_way', NULL, '2025-11-26 04:15:16'),
+(9, 16, 30, '2025-11-29 06:30:00', 450000.00, 44, 45, 'completed', 'one_way', NULL, '2025-11-28 15:01:43'),
+(10, 34, 16, '2025-12-03 06:30:00', 400000.00, 44, 45, 'scheduled', 'one_way', NULL, '2025-12-02 10:29:33'),
+(11, 34, 16, '2025-12-02 12:45:00', 380000.00, 44, 45, 'paused', 'one_way', NULL, '2025-12-02 10:42:34'),
+(12, 34, 16, '2025-12-02 15:30:00', 380000.00, 45, 45, 'paused', 'one_way', NULL, '2025-12-02 10:45:07'),
+(13, 33, 28, '2025-12-02 12:45:00', 370000.00, 45, 45, 'paused', 'one_way', NULL, '2025-12-02 10:48:42'),
+(14, 33, 28, '2025-12-02 15:30:00', 300000.00, 44, 45, 'paused', 'round_trip', '2025-12-06 10:29:00', '2025-12-02 10:50:57'),
+(15, 23, 1, '2025-12-03 18:04:00', 36000.00, 36, 36, 'scheduled', 'one_way', NULL, '2025-12-02 11:04:58'),
+(16, 23, 1, '2025-12-03 18:05:00', 36000.00, 36, 36, 'scheduled', 'round_trip', '2025-12-04 18:05:00', '2025-12-02 11:05:22');
 
 -- --------------------------------------------------------
 
@@ -294,6 +301,13 @@ ALTER TABLE `provinces`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `staff`
+--
+ALTER TABLE `staff`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
 -- Indexes for table `trips`
 --
 ALTER TABLE `trips`
@@ -317,7 +331,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `customers`
@@ -329,7 +343,7 @@ ALTER TABLE `customers`
 -- AUTO_INCREMENT for table `promotions`
 --
 ALTER TABLE `promotions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `provinces`
@@ -347,7 +361,7 @@ ALTER TABLE `staff`
 -- AUTO_INCREMENT for table `trips`
 --
 ALTER TABLE `trips`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `users`

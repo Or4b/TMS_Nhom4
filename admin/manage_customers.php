@@ -1,6 +1,5 @@
 <?php
-include 'config.php';
-
+require_once dirname(__DIR__) . '/includes/config.php';
 $pageTitle = "Quản lý Khách hàng";
 
 // Handle actions
@@ -9,28 +8,26 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     
     if ($_GET['action'] == 'delete') {
         try {
-            // First get user_id to delete from users table
+            // 1. Lấy user_id từ bảng customers trước
             $stmt = $pdo->prepare("SELECT user_id FROM customers WHERE id = ?");
             $stmt->execute([$customerId]);
             $customer = $stmt->fetch();
             
             if ($customer) {
-                // Start transaction
                 $pdo->beginTransaction();
                 
-                // First delete all bookings of this customer
-                $stmt = $pdo->prepare("DELETE FROM bookings WHERE customer_id = ?");
-                $stmt->execute([$customerId]);
+                // 2. SỬA LỖI: Xóa booking dựa trên user_id (không phải customer_id)
+                $stmt = $pdo->prepare("DELETE FROM bookings WHERE user_id = ?");
+                $stmt->execute([$customer['user_id']]);
                 
-                // Then delete from customers table
+                // 3. Xóa trong bảng customers
                 $stmt = $pdo->prepare("DELETE FROM customers WHERE id = ?");
                 $stmt->execute([$customerId]);
                 
-                // Finally delete from users table
+                // 4. Xóa trong bảng users
                 $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
                 $stmt->execute([$customer['user_id']]);
                 
-                // Commit transaction
                 $pdo->commit();
                 
                 $_SESSION['message'] = "Đã xóa khách hàng và tất cả dữ liệu liên quan thành công!";
@@ -38,7 +35,6 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
                 $_SESSION['message'] = "Không tìm thấy khách hàng!";
             }
         } catch(PDOException $e) {
-            // Rollback transaction if error
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
@@ -47,6 +43,7 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
         header("Location: manage_customers.php");
         exit();
     } elseif ($_GET['action'] == 'toggle_status') {
+        // ... (Giữ nguyên logic toggle)
         $stmt = $pdo->prepare("SELECT user_id FROM customers WHERE id = ?");
         $stmt->execute([$customerId]);
         $customer = $stmt->fetch();
@@ -60,14 +57,13 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     }
 }
 
-// Get all customers
+// Get all customers (Giữ nguyên)
 $stmt = $pdo->query("SELECT c.*, u.username, u.email, u.full_name, u.phone, u.status as user_status 
                      FROM customers c 
                      JOIN users u ON c.user_id = u.id 
                      ORDER BY c.id DESC");
 $customers = $stmt->fetchAll();
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -75,251 +71,49 @@ $customers = $stmt->fetchAll();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: #f8f9fa;
-            display: flex;
-        }
-
-        .sidebar {
-            width: 250px;
-            background: #2c3e50;
-            color: white;
-            height: 100vh;
-            position: fixed;
-        }
-
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #34495e;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-            padding: 1rem 0;
-        }
-
-        .sidebar-menu li {
-            padding: 0.75rem 1.5rem;
-        }
-
-        .sidebar-menu li.active {
-            background: #34495e;
-            border-left: 4px solid #3498db;
-        }
-
-        .sidebar-menu a {
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .main-content {
-            margin-left: 250px;
-            padding: 2rem;
-            width: calc(100% - 250px);
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .search-filters {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            flex: 1;
-            min-width: 300px;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-            font-size: 0.9rem;
-        }
-
-        .btn-primary {
-            background: #3498db;
-            color: white;
-        }
-
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .btn-success {
-            background: #27ae60;
-            color: white;
-        }
-
-        .btn-info {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .customers-table {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        th {
-            background: #f8f9fa;
-            font-weight: 600;
-        }
-
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-inactive {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .alert {
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 2rem;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 900px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .close {
-            float: right;
-            font-size: 1.5rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .history-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #3498db;
-        }
-
-        .stat-label {
-            color: #666;
-            margin-top: 0.5rem;
-        }
+        /* ... CSS giữ nguyên ... */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; height: 100vh; position: fixed; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid #34495e; }
+        .sidebar-menu { list-style: none; padding: 1rem 0; }
+        .sidebar-menu li { padding: 0.75rem 1.5rem; }
+        .sidebar-menu li.active { background: #34495e; border-left: 4px solid #3498db; }
+        .sidebar-menu a { color: white; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+        .main-content { margin-left: 250px; padding: 2rem; width: calc(100% - 250px); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .search-filters { background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 300px; }
+        .search-box input { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block; text-align: center; font-size: 0.9rem; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        .customers-table { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-inactive { background: #f8d7da; color: #721c24; }
+        .action-buttons { display: flex; gap: 0.5rem; }
+        .alert { padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 5% auto; padding: 2rem; border-radius: 8px; width: 80%; max-width: 900px; max-height: 80vh; overflow-y: auto; }
+        .close { float: right; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .history-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .stat-value { font-size: 2rem; font-weight: bold; color: #3498db; }
+        .stat-label { color: #666; margin-top: 0.5rem; }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
     <?php include 'sidebar.php'; ?>
 
-    <!-- Main Content -->
     <div class="main-content">
         <div class="header">
             <h1>Quản Lý Tài Khoản Khách Hàng</h1>
@@ -393,7 +187,6 @@ $customers = $stmt->fetchAll();
         </div>
     </div>
 
-    <!-- Customer History Modal -->
     <div id="historyModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>

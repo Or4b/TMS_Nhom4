@@ -1,0 +1,246 @@
+/* ============================
+   GIAO DIỆN KẾT QUẢ TÌM KIẾM
+   KHÔNG XUNG ĐỘT PROFILE
+   ============================ */
+.trip-search {
+    max-width: 900px;
+    margin: 40px auto;
+}
+
+/* summary */
+.trip-search .search-summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+}
+
+.trip-search .search-summary-card h2 {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.trip-search .summary-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.trip-search .tag {
+    background: #e0e7ff;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #1e3a8a;
+}
+
+.trip-search .btn-outline {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #3b82f6;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+/* Trip count */
+.trip-search .count-result {
+    margin-top: 25px;
+    font-size: 16px;
+    color: #374151;
+}
+
+/* Trip item */
+.trip-search .trip-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+    gap: 10px;
+}
+
+.trip-search .trip-card .left h3 {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.trip-search .duration {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* center */
+.trip-search .time-start {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2563eb;
+}
+
+.trip-search .time-detail {
+    font-size: 14px;
+    color: #4b5563;
+}
+
+/* right */
+.trip-search .seats.green { color: #059669; }
+.trip-search .seats.red { color: #dc2626; }
+
+.trip-search .price {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.trip-search .btn-select {
+    margin-top: 10px;
+    background: #2563eb;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    width: 100%;
+}
+/* style.css */
+:root {
+  --bg: #6b5bff;
+  --card: #ffffff;
+  --accent: #5b8cff;
+  --muted: #777;
+  --primary: #6b5bff;
+  --danger: #e74c3c;
+  --shadow: 0 6px 18px rgba(50,50,93,0.12);
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+/* --- AUTH PAGES (Login, Register, Reset) --- */
+body.page-auth {
+  margin: 0;
+  background: linear-gradient(135deg, var(--bg), #4b3cc9);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #222;
+}
+
+.card {
+  width: 380px;
+  padding: 30px;
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.brand { font-size: 28px; margin: 0 0 6px; font-weight: 700; text-align: center; }
+.brand .accent { color: var(--accent); }
+.subtitle { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 20px; }
+
+label { display: block; margin: 12px 0; font-size: 13px; color: #333; font-weight: 500; }
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], select {
+  width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px; margin-top: 6px;
+}
+input:focus, select:focus { outline: none; border-color: var(--primary); }
+
+.btn { display: inline-block; padding: 12px 16px; border-radius: 6px; border: none; cursor: pointer; width: 100%; font-weight: 600; font-size: 14px; margin-top: 15px; transition: 0.2s; }
+.btn.primary { background: linear-gradient(90deg, var(--primary), #5a49e8); color: #fff; }
+.btn.primary:hover { opacity: 0.9; }
+
+.muted { color: var(--muted); font-size: 13px; text-align: center; margin-top: 15px; }
+.muted a { color: var(--primary); text-decoration: none; }
+.message { margin-top: 15px; font-size: 13px; text-align: center; min-height: 20px; }
+
+/* Password Field with Eye Icon */
+.password-field { display: flex; position: relative; }
+.password-field input { padding-right: 40px; }
+.password-field .eye { position: absolute; right: 0; top: 6px; bottom: 0; background: none; border: none; cursor: pointer; color: #777; font-size: 16px; width: 40px; }
+
+/* Steps for Forgot Password */
+.steps { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+.step { width: 70px; height: 50px; border-radius: 6px; background: #f4f7fb; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #777; }
+.step.active { background: #e8f0ff; border: 1px solid #d7e6ff; color: var(--primary); font-weight: bold; }
+
+/* --- HOME PAGE (Index.php) --- */
+body { margin: 0; background: #f4f6fb; }
+
+.home-header {
+    background: #fff; padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+.home-header nav a { text-decoration: none; color: #555; font-weight: 500; font-size: 15px; transition: color 0.2s; }
+.home-header nav a:hover { color: var(--primary); }
+
+.user-menu { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    position: relative; 
+    cursor: pointer; 
+}
+.avatar {
+    width: 36px; height: 36px; background: var(--bg); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+}
+
+/* BẮT ĐẦU PHẦN SỬA LỖI DROPDOWN TỐI ƯU */
+.dropdown-content {
+    display: none; 
+    position: absolute; 
+    right: 0; 
+    /* Đảm bảo menu nằm sát ngay dưới chân .user-menu */
+    top: 100%; 
+    /* Đặt margin = 0 để giảm thiểu khoảng cách thực tế */
+    margin-top: 0; 
+    background: white; 
+    border-radius: 8px; 
+    box-shadow: var(--shadow); 
+    min-width: 180px; 
+    z-index: 100; 
+    overflow: hidden;
+}
+
+/* Tăng diện tích của "cầu vô hình" (::before) */
+.dropdown-content::before {
+    content: "";
+    display: block;
+    position: absolute;
+    /* Kéo lên 20px (tăng từ 15px) để bao phủ chắc chắn khu vực chuột */
+    top: -20px; 
+    left: 0;
+    width: 100%;
+    height: 20px; 
+    background: transparent; 
+}
+
+.dropdown-content a { display: block; padding: 12px 20px; text-decoration: none; color: #333; font-size: 14px; transition: 0.2s; }
+.dropdown-content a:hover { background: #f5f5f5; }
+.user-menu:hover .dropdown-content { display: block; }
+/* KẾT THÚC PHẦN SỬA LỖI DROPDOWN TỐI ƯU */
+
+.search-box {
+    max-width: 900px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: var(--shadow);
+}
+.trip-type { display: flex; gap: 20px; margin-bottom: 20px; }
+.search-row { display: flex; gap: 15px; flex-wrap: wrap; }
+.search-col { flex: 1; min-width: 200px; }
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 1rem;
+}
+.btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%; /* Chiều rộng bằng nút thanh toán */
+}
+.btn-secondary:hover {
+    background: #d1d5db;
+}

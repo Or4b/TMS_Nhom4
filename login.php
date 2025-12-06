@@ -43,8 +43,8 @@
     <div id="msg" class="message"></div>
   </div>
 
-  <script>
-    // 1. Toggle Password
+<script>
+    // 1. Chức năng ẩn/hiện mật khẩu
     document.getElementById('togglePwd').addEventListener('click', function(){
       const pwdInput = document.getElementById('loginPassword');
       const isPwd = pwdInput.type === 'password';
@@ -52,24 +52,28 @@
       this.textContent = isPwd ? '🙈' : '👁';
     });
 
-    // 2. Handle Submit
+    // 2. Xử lý khi nhấn Đăng nhập
     document.getElementById('loginForm').addEventListener('submit', function(e){
       e.preventDefault(); 
       
       const btn = document.getElementById('btnLogin');
       const msgDiv = document.getElementById('msg');
-      const formData = new FormData(this); // FormData cần input có name
+      const loginInput = document.getElementById('login');
+      const passInput = document.getElementById('loginPassword');
+      const formData = new FormData(this);
 
+      // Reset trạng thái nút bấm
       btn.disabled = true;
-      btn.textContent = 'Đang xử lý...';
+      btn.textContent = 'Đang kiểm tra...';
       msgDiv.style.display = 'none';
+      msgDiv.className = 'message'; 
 
       fetch('api.php?action=login', {
           method: 'POST',
           body: formData
       })
       .then(response => {
-          if (!response.ok) throw new Error('Lỗi Server (500/404)');
+          if (!response.ok) throw new Error('Lỗi Server');
           return response.json();
       })
       .then(data => {
@@ -77,14 +81,29 @@
           btn.textContent = 'Đăng nhập';
 
           if (data.status === 'ok') {
-              msgDiv.className = 'message success';
+              // --- TRƯỜNG HỢP THÀNH CÔNG ---
+              msgDiv.className = 'message success'; // Class màu xanh
+              msgDiv.style.display = 'block';
               msgDiv.textContent = data.message;
+              
+              // Chờ 1.5 giây cho người dùng đọc thông báo rồi mới chuyển
               setTimeout(() => {
                   window.location.href = data.data; 
-              }, 1000);
+              }, 1500);
+
           } else {
-              msgDiv.className = 'message error';
+              // --- TRƯỜNG HỢP CÓ LỖI ---
+              msgDiv.className = 'message error'; // Class màu đỏ
+              msgDiv.style.display = 'block';
               msgDiv.textContent = data.message;
+
+              // Tự động focus vào ô bị sai để nhập lại cho nhanh
+              if (data.message.includes('Mật khẩu')) {
+                  passInput.value = ''; // Xóa mật khẩu sai
+                  passInput.focus();
+              } else {
+                  loginInput.focus();
+              }
           }
       })
       .catch(error => {
@@ -92,7 +111,8 @@
           btn.disabled = false;
           btn.textContent = 'Đăng nhập';
           msgDiv.className = 'message error';
-          msgDiv.textContent = 'Lỗi kết nối! Kiểm tra lại file config.php và database.';
+          msgDiv.style.display = 'block';
+          msgDiv.textContent = 'Không thể kết nối đến máy chủ!';
       });
     });
   </script>

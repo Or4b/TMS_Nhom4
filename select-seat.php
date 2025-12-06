@@ -38,6 +38,9 @@ if (!$trip) {
     exit();
 }
 
+$search_date = date('Y-m-d', strtotime($trip['departure_time']));
+$back_url = "search.php?origin={$trip['departure_province_id']}&destination={$trip['destination_province_id']}&date={$search_date}&trip_type={$trip['ticket_type']}";
+
 // Lấy danh sách ghế đã đặt
 $stmt = $pdo->prepare("SELECT seat_numbers FROM bookings 
                WHERE trip_id = ? AND status != 'cancelled'");
@@ -60,67 +63,346 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chọn Ghế - TMS VéXe</title>
     <style>
         /* GIỮ NGUYÊN CSS CŨ */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background-color: #f5f5f5; }
-        .header { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1rem 2rem; }
-        .header-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 1.5rem; font-weight: bold; color: #333; }
-        .breadcrumb { color: #666; font-size: 0.9rem; }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-        .steps { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
-        .step { display: flex; align-items: center; gap: 0.5rem; }
-        .step-number { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; }
-        .step.completed .step-number { background: #22c55e; }
-        .step.active .step-number { background: #3b82f6; }
-        .step.inactive .step-number { background: #d1d5db; color: #6b7280; }
-        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
-        .card { background: white; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .card-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; }
-        .trip-info { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
-        .driver-position { text-align: center; margin: 1rem 0; color: #666; font-size: 0.9rem; }
-        .driver-icon { display: inline-block; width: 3rem; height: 2rem; background: #fecdd3; border-radius: 0.25rem; margin-right: 0.5rem; }
-        .seats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; max-width: 450px; margin: 0 auto 2rem; }
-        .seat { aspect-ratio: 1; border: 2px solid #22c55e; border-radius: 0.5rem; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; transition: all 0.2s; }
-        .seat:hover:not(.booked) { background: #f0fdf4; transform: scale(1.05); }
-        .seat.selected { background: #3b82f6; border-color: #3b82f6; color: white; }
-        .seat.booked { background: #ea580c; border-color: #ea580c; color: white; cursor: not-allowed; }
-        .legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font-size: 0.85rem; }
-        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
-        .legend-box { width: 1.5rem; height: 1.5rem; border-radius: 0.25rem; }
-        .legend-box.available { border: 2px solid #22c55e; background: white; }
-        .legend-box.selected { background: #3b82f6; }
-        .legend-box.booked { background: #ea580c; }
-        .summary-section { margin-bottom: 1.5rem; }
-        .summary-title { font-weight: 600; margin-bottom: 0.5rem; }
-        .summary-text { color: #666; font-size: 0.9rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #333; }
-        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.9rem; }
-        .form-input:focus { outline: none; border-color: #3b82f6; }
-        .promo-section { margin-bottom: 1.5rem; }
-        .promo-input-group { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-        .promo-input { flex: 1; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.9rem; }
-        .btn { padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .price-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
-        .total-price { font-size: 1.25rem; font-weight: bold; color: #ea580c; }
-        .btn-continue { width: 100%; padding: 0.75rem; background: #d1d5db; color: #6b7280; cursor: not-allowed; }
-        .btn-continue.active { background: #22c55e; color: white; cursor: pointer; }
-        .btn-continue.active:hover { background: #16a34a; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1rem 2rem;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .breadcrumb {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .step-number {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: #22c55e;
+        }
+
+        .step.active .step-number {
+            background: #3b82f6;
+        }
+
+        .step.inactive .step-number {
+            background: #d1d5db;
+            color: #6b7280;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .trip-info {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .driver-position {
+            text-align: center;
+            margin: 1rem 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .driver-icon {
+            display: inline-block;
+            width: 3rem;
+            height: 2rem;
+            background: #fecdd3;
+            border-radius: 0.25rem;
+            margin-right: 0.5rem;
+        }
+
+        .seats-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.75rem;
+            max-width: 450px;
+            margin: 0 auto 2rem;
+        }
+
+        .seat {
+            aspect-ratio: 1;
+            border: 2px solid #22c55e;
+            border-radius: 0.5rem;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .seat:hover:not(.booked) {
+            background: #f0fdf4;
+            transform: scale(1.05);
+        }
+
+        .seat.selected {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        .seat.booked {
+            background: #ea580c;
+            border-color: #ea580c;
+            color: white;
+            cursor: not-allowed;
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-box {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 0.25rem;
+        }
+
+        .legend-box.available {
+            border: 2px solid #22c55e;
+            background: white;
+        }
+
+        .legend-box.selected {
+            background: #3b82f6;
+        }
+
+        .legend-box.booked {
+            background: #ea580c;
+        }
+
+        .summary-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-text {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .promo-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .promo-input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .promo-input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .total-price {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #ea580c;
+        }
+
+        .btn-continue {
+            width: 100%;
+            padding: 0.75rem;
+            background: #d1d5db;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .btn-continue.active {
+            background: #22c55e;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-continue.active:hover {
+            background: #16a34a;
+        }
+
         /* Thêm style cho thông báo lỗi/thành công */
-        .promo-message { font-size: 0.85rem; margin-top: 0.25rem; }
-        .text-success { color: #22c55e; }
-        .text-error { color: #ea580c; }
+        .promo-message {
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+
+        .text-success {
+            color: #22c55e;
+        }
+
+        .text-error {
+            color: #ea580c;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            /* Chiều rộng bằng nút thanh toán */
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
     </style>
 </head>
+
 <body>
     <div class="header">
         <div class="header-content">
@@ -149,8 +431,8 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             <div class="card">
                 <h2 class="card-title">Chọn Ghế Ngồi</h2>
                 <p class="trip-info">
-                    Chuyến: <?php echo htmlspecialchars($trip['origin_name']); ?> → 
-                    <?php echo htmlspecialchars($trip['destination_name']); ?> - 
+                    Chuyến: <?php echo htmlspecialchars($trip['origin_name']); ?> →
+                    <?php echo htmlspecialchars($trip['destination_name']); ?> -
                     <?php echo date('d/m/Y H:i', strtotime($trip['departure_time'])); ?>
                 </p>
 
@@ -163,14 +445,14 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     <?php
                     $rows = ['A', 'B', 'C', 'D', 'E'];
                     $cols = range(1, 5);
-                    
+
                     foreach ($rows as $row) {
                         foreach ($cols as $col) {
                             $seat = $row . $col;
                             $is_booked = in_array($seat, $booked_seats);
                             $class = $is_booked ? 'seat booked' : 'seat';
                             $disabled = $is_booked ? 'disabled' : '';
-                            
+
                             echo "<button class='$class' data-seat='$seat' $disabled>$seat</button>";
                         }
                     }
@@ -195,10 +477,10 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
             <div class="card">
                 <h2 class="card-title">Thông Tin Đặt Vé</h2>
-                
+
                 <div class="summary-section">
                     <h3 class="summary-title">
-                        <?php echo htmlspecialchars($trip['origin_name']); ?> → 
+                        <?php echo htmlspecialchars($trip['origin_name']); ?> →
                         <?php echo htmlspecialchars($trip['destination_name']); ?>
                     </h3>
                     <p class="summary-text"><?php echo date('d/m/Y - H:i', strtotime($trip['departure_time'])); ?></p>
@@ -212,23 +494,23 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
                 <div class="summary-section" style="border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem;">
                     <h3 class="summary-title">Thông tin hành khách</h3>
-                    
+
                     <div class="form-group">
                         <label class="form-label">Họ và tên *</label>
-                        <input type="text" class="form-input" id="fullname" 
-                               value="<?php echo htmlspecialchars($user_info['full_name'] ?? ''); ?>" required>
+                        <input type="text" class="form-input" id="fullname"
+                            value="<?php echo htmlspecialchars($user_info['full_name'] ?? ''); ?>" required>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Email *</label>
-                        <input type="email" class="form-input" id="email" 
-                               value="<?php echo htmlspecialchars($user_info['email'] ?? ''); ?>" required>
+                        <input type="email" class="form-input" id="email"
+                            value="<?php echo htmlspecialchars($user_info['email'] ?? ''); ?>" required>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Số điện thoại *</label>
-                        <input type="tel" class="form-input" id="phone" 
-                               value="<?php echo htmlspecialchars($user_info['phone'] ?? ''); ?>" required>
+                        <input type="tel" class="form-input" id="phone"
+                            value="<?php echo htmlspecialchars($user_info['phone'] ?? ''); ?>" required>
                     </div>
                 </div>
 
@@ -256,7 +538,15 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     </div>
                 </div>
 
-                <button class="btn btn-continue" id="continueBtn" onclick="proceedToPayment()">Thanh toán</button>
+                <div class="action-buttons">
+                    <a href="<?php echo $back_url; ?>" class="btn btn-secondary">
+                        ← Quay lại
+                    </a>
+
+                    <button class="btn btn-continue" id="continueBtn" onclick="proceedToPayment()">
+                        Thanh toán
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -265,7 +555,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         const selectedSeats = [];
         const pricePerSeat = <?php echo $trip['price']; ?>;
         const tripId = <?php echo $trip_id; ?>;
-        
+
         // Biến lưu thông tin giảm giá
         let currentDiscount = 0;
         let appliedPromoId = null;
@@ -273,7 +563,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         document.querySelectorAll('.seat:not(.booked)').forEach(seat => {
             seat.addEventListener('click', function() {
                 const seatNumber = this.getAttribute('data-seat');
-                
+
                 if (this.classList.contains('selected')) {
                     this.classList.remove('selected');
                     const index = selectedSeats.indexOf(seatNumber);
@@ -284,7 +574,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     this.classList.add('selected');
                     selectedSeats.push(seatNumber);
                 }
-                
+
                 // Khi thay đổi ghế, reset mã giảm giá để đảm bảo tính đúng đắn (ví dụ: điều kiện đơn tối thiểu)
                 resetPromo();
                 updateSummary();
@@ -302,12 +592,12 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         function updateSummary() {
             const display = document.getElementById('selectedSeatsDisplay');
             display.textContent = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'Chưa chọn ghế nào';
-            
+
             const originalTotal = selectedSeats.length * pricePerSeat;
             const finalTotal = originalTotal - currentDiscount;
 
             document.getElementById('originalPrice').textContent = originalTotal.toLocaleString('vi-VN') + ' VNĐ';
-            
+
             if (currentDiscount > 0) {
                 document.getElementById('discountRow').style.display = 'flex';
                 document.getElementById('discountPrice').textContent = '-' + currentDiscount.toLocaleString('vi-VN') + ' VNĐ';
@@ -316,7 +606,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             }
 
             document.getElementById('totalPrice').textContent = (finalTotal > 0 ? finalTotal : 0).toLocaleString('vi-VN') + ' VNĐ';
-            
+
             const continueBtn = document.getElementById('continueBtn');
             if (selectedSeats.length > 0) {
                 continueBtn.classList.add('active');
@@ -330,7 +620,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         function applyPromo() {
             const promoCode = document.getElementById('promoCode').value.trim();
             const messageDiv = document.getElementById('promoMessage');
-            
+
             if (!promoCode) {
                 messageDiv.innerHTML = '<span class="text-error">Vui lòng nhập mã khuyến mãi</span>';
                 return;
@@ -345,33 +635,33 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
             // Gọi AJAX kiểm tra mã
             fetch('check_promo.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    code: promoCode,
-                    total_amount: currentTotal
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: promoCode,
+                        total_amount: currentTotal
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    currentDiscount = data.discount_amount;
-                    appliedPromoId = data.promotion_id;
-                    messageDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
-                    updateSummary();
-                } else {
-                    currentDiscount = 0;
-                    appliedPromoId = null;
-                    messageDiv.innerHTML = `<span class="text-error">${data.message}</span>`;
-                    updateSummary();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                messageDiv.innerHTML = '<span class="text-error">Có lỗi xảy ra, vui lòng thử lại</span>';
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentDiscount = data.discount_amount;
+                        appliedPromoId = data.promotion_id;
+                        messageDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                        updateSummary();
+                    } else {
+                        currentDiscount = 0;
+                        appliedPromoId = null;
+                        messageDiv.innerHTML = `<span class="text-error">${data.message}</span>`;
+                        updateSummary();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    messageDiv.innerHTML = '<span class="text-error">Có lỗi xảy ra, vui lòng thử lại</span>';
+                });
         }
 
         function proceedToPayment() {
@@ -388,13 +678,13 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 alert('Vui lòng điền đầy đủ thông tin hành khách');
                 return;
             }
-            
+
             const seatsFormatted = selectedSeats.map(seat => {
                 const col = seat.charCodeAt(0) - 64;
                 const row = seat.substring(1);
                 return col + '-' + row;
             }).join(',');
-            
+
             const params = new URLSearchParams({
                 trip_id: tripId,
                 seats: seatsFormatted,
@@ -409,9 +699,10 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 params.append('promotion_id', appliedPromoId);
                 params.append('discount_amount', currentDiscount);
             }
-            
+
             window.location.href = 'payment.php?' + params.toString();
         }
     </script>
 </body>
+
 </html>

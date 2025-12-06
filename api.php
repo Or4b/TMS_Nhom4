@@ -62,7 +62,7 @@ try {
         exit;
     }
 
-    // --- SR-1.2: ĐĂNG NHẬP ---
+// --- SR-1.2: ĐĂNG NHẬP (Đã nâng cấp thông báo chi tiết) ---
     if ($action === 'login') {
         $login    = trim($_POST['login'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -71,34 +71,49 @@ try {
             echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập đầy đủ thông tin.']); exit;
         }
 
+        // 1. Tìm user trước (Chưa kiểm tra pass vội)
         $stmt = $pdo->prepare("SELECT * FROM users WHERE (email = ? OR username = ?) LIMIT 1");
         $stmt->execute([$login, $login]);
         $user = $stmt->fetch();
 
-        if ($user && $user['password'] === $password) {
-            session_regenerate_id(true);
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['username']  = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['role']      = $user['role'];
-
-            $redirect = 'index.php';
-            if ($user['role'] === 'admin') {
-                $_SESSION['is_admin'] = true;       
-                $_SESSION['admin_logged_in'] = true; 
-                $_SESSION['admin_id'] = $user['id']; 
-                $redirect = 'admin/dashboard.php';
-            } elseif ($user['role'] === 'staff') {
-                $_SESSION['is_staff'] = true;
-                $_SESSION['staff_logged_in'] = true;
-                $_SESSION['staff_id'] = $user['id'];
-                $redirect = 'staff/dashboard.php';
-            }
-
-            echo json_encode(['status' => 'ok', 'message' => 'Đăng nhập thành công!', 'data' => $redirect]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Sai tài khoản hoặc mật khẩu.']);
+        // 2. Logic kiểm tra chi tiết
+        if (!$user) {
+            // Trường hợp A: Sai tài khoản
+            echo json_encode(['status' => 'error', 'message' => '❌ Tài khoản hoặc email này không tồn tại.']);
+            exit;
         }
+
+        if ($user['password'] !== $password) { // Nếu đã mã hóa thì dùng: !password_verify($password, $user['password'])
+            // Trường hợp B: Sai mật khẩu
+            echo json_encode(['status' => 'error', 'message' => '❌ Mật khẩu không chính xác.']);
+            exit;
+        }
+
+        // Trường hợp C: Đăng nhập thành công
+        session_regenerate_id(true);
+        $_SESSION['user_id']   = $user['id'];
+        $_SESSION['username']  = $user['username'];
+        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['role']      = $user['role'];
+
+        $redirect = 'index.php';
+        if ($user['role'] === 'admin') {
+            $_SESSION['is_admin'] = true;       
+            $_SESSION['admin_logged_in'] = true; 
+            $_SESSION['admin_id'] = $user['id']; 
+            $redirect = 'admin/dashboard.php';
+        } elseif ($user['role'] === 'staff') {
+            $_SESSION['is_staff'] = true;
+            $_SESSION['staff_logged_in'] = true;
+            $_SESSION['staff_id'] = $user['id'];
+            $redirect = 'staff/dashboard.php';
+        }
+
+        echo json_encode([
+            'status' => 'ok', 
+            'message' => '✅ Đăng nhập thành công! Đang chuyển hướng...', 
+            'data' => $redirect
+        ]);
         exit;
     }
 

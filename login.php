@@ -16,14 +16,14 @@
     <h1 class="brand">TMS<span class="accent">VéXe</span></h1>
     <p class="subtitle">Hệ thống quản lý vé xe thông minh</p>
 
-    <form id="loginForm">
+    <form id="loginForm" novalidate>
       <label>Tên đăng nhập hoặc email
-        <input name="login" id="login" type="text" placeholder="Nhập tên đăng nhập hoặc email" required>
+        <input name="login" id="login" type="text" placeholder="Nhập tên đăng nhập hoặc email">
       </label>
 
       <label>Mật khẩu
         <div class="password-field">
-          <input name="password" id="loginPassword" type="password" placeholder="Nhập mật khẩu" required>
+          <input name="password" id="loginPassword" type="password" placeholder="Nhập mật khẩu">
           <button type="button" id="togglePwd" class="eye">👁</button>
         </div>
       </label>
@@ -58,11 +58,9 @@
       
       const btn = document.getElementById('btnLogin');
       const msgDiv = document.getElementById('msg');
-      const loginInput = document.getElementById('login');
-      const passInput = document.getElementById('loginPassword');
       const formData = new FormData(this);
 
-      // Reset trạng thái nút bấm
+      // Reset trạng thái
       btn.disabled = true;
       btn.textContent = 'Đang kiểm tra...';
       msgDiv.style.display = 'none';
@@ -72,38 +70,21 @@
           method: 'POST',
           body: formData
       })
-      .then(response => {
-          if (!response.ok) throw new Error('Lỗi Server');
-          return response.json();
-      })
+      .then(response => response.json())
       .then(data => {
           btn.disabled = false;
           btn.textContent = 'Đăng nhập';
 
           if (data.status === 'ok') {
-              // --- TRƯỜNG HỢP THÀNH CÔNG ---
-              msgDiv.className = 'message success'; // Class màu xanh
+              msgDiv.className = 'message success';
               msgDiv.style.display = 'block';
               msgDiv.textContent = data.message;
-              
-              // Chờ 1.5 giây cho người dùng đọc thông báo rồi mới chuyển
-              setTimeout(() => {
-                  window.location.href = data.data; 
-              }, 1500);
-
+              setTimeout(() => { window.location.href = data.data; }, 1500);
           } else {
-              // --- TRƯỜNG HỢP CÓ LỖI ---
-              msgDiv.className = 'message error'; // Class màu đỏ
+              // HIỂN THỊ LỖI CỤ THỂ TỪ PHP (Ví dụ: "Vui lòng nhập mật khẩu")
+              msgDiv.className = 'message error';
               msgDiv.style.display = 'block';
               msgDiv.textContent = data.message;
-
-              // Tự động focus vào ô bị sai để nhập lại cho nhanh
-              if (data.message.includes('Mật khẩu')) {
-                  passInput.value = ''; // Xóa mật khẩu sai
-                  passInput.focus();
-              } else {
-                  loginInput.focus();
-              }
           }
       })
       .catch(error => {
@@ -111,8 +92,7 @@
           btn.disabled = false;
           btn.textContent = 'Đăng nhập';
           msgDiv.className = 'message error';
-          msgDiv.style.display = 'block';
-          msgDiv.textContent = 'Không thể kết nối đến máy chủ!';
+          msgDiv.textContent = 'Lỗi kết nối máy chủ!';
       });
     });
   </script>

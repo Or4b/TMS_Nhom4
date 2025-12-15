@@ -19,75 +19,143 @@ $action = $_GET['action'] ?? '';
 
 try {
     // --- SR-1.1: ĐĂNG KÝ ---
-    if ($action === 'register') {
-        $username = trim($_POST['username'] ?? '');
-        $fullname = trim($_POST['fullname'] ?? '');
-        $email    = trim($_POST['email'] ?? '');
-        $phone    = trim($_POST['phone'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $confirm  = $_POST['confirm_password'] ?? '';
+if ($action === 'register') {
+    $username = trim($_POST['username'] ?? '');
+    $fullname = trim($_POST['fullname'] ?? '');
+    $email    = trim($_POST['email'] ?? '');
+    $phone    = trim($_POST['phone'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $confirm  = $_POST['confirm_password'] ?? '';
 
-        if (empty($username) || empty($fullname) || empty($email) || empty($phone) || empty($password)) {
-            echo json_encode(['status' => 'error', 'message' => 'Vui lòng điền đầy đủ thông tin.']); exit;
-        }
+    // --- 1. VALIDATE HỌ TÊN ---
+    if (empty($fullname)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập họ tên.']); exit;
+    }
 
-        if ($password !== $confirm) {
-            echo json_encode(['status' => 'error', 'message' => 'Mật khẩu xác nhận không khớp.']); exit;
-        }
+    // --- 2. VALIDATE USERNAME (Rỗng -> Định dạng) ---
+    if (empty($username)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập tên đăng nhập.']); exit;
+    }
+    // Sau khi chắc chắn có nhập mới check ký tự đặc biệt
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+        echo json_encode(['status' => 'error', 'message' => 'Username không được chứa ký tự đặc biệt.']); exit;
+    }
 
-        // Kiểm tra trùng lặp
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1");
-        $stmt->execute([$email, $username]);
-        if ($stmt->fetch()) {
-            echo json_encode(['status' => 'error', 'message' => 'Email hoặc Username đã tồn tại.']); exit;
-        }
+    // --- 3. VALIDATE EMAIL (Rỗng -> Định dạng) ---
+    if (empty($email)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập email.']); exit;
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['status' => 'error', 'message' => 'Email không hợp lệ.']); exit;
+    }
 
+    // --- 4. VALIDATE SỐ ĐIỆN THOẠI (Rỗng -> Định dạng) ---
+    if (empty($phone)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập số điện thoại.']); exit;
+    }
+    if (!preg_match('/^[0-9]{9,11}$/', $phone)) {
+        echo json_encode(['status' => 'error', 'message' => 'Số điện thoại không hợp lệ (cần 9-11 số).']); exit;
+    }
+
+    // --- 5. VALIDATE MẬT KHẨU (Rỗng -> Độ dài -> Khớp lệnh) ---
+    if (empty($password)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập mật khẩu.']); exit;
+    }
+    if (strlen($password) < 6) {
+        echo json_encode(['status' => 'error', 'message' => 'Password phải ít nhất có 6 kí tự.']); exit;
+    }
+    if ($password !== $confirm) {
+        echo json_encode(['status' => 'error', 'message' => 'Mật khẩu xác nhận không khớp.']); exit;
+    }
+
+    // --- 6. KIỂM TRA TRÙNG LẶP DATABASE ---
+    // Kiểm tra Username tồn tại
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
+    $stmt->execute([$username]);
+    if ($stmt->fetch()) {
+        echo json_encode(['status' => 'error', 'message' => 'Username đã tồn tại.']); exit;
+    }
+
+    // Kiểm tra Email tồn tại
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+    $stmt->execute([$email]);
+    if ($stmt->fetch()) {
+        echo json_encode(['status' => 'error', 'message' => 'Email đã được sử dụng.']); exit;
+    }
+
+    // --- 7. XỬ LÝ LƯU VÀO DB ---
+    try {
         $pdo->beginTransaction();
-        
-        // Lưu mật khẩu (Plain text theo demo)
-        $sqlUser = "INSERT INTO users (username, password, email, full_name, phone, role, status) VALUES (?, ?, ?, ?, ?, 'customer', 'active')";
+
+        $plain_pass = $password; // Demo: Không hash
+
+        $sqlUser = "INSERT INTO users (username, password, email, full_name, phone, role, status) 
+                    VALUES (?, ?, ?, ?, ?, 'customer', 'active')";
         $stmt = $pdo->prepare($sqlUser);
-        $stmt->execute([$username, $password, $email, $fullname, $phone]);
-        
-        try {
-            $userId = $pdo->lastInsertId();
-            $stmt = $pdo->prepare("INSERT INTO customers (user_id) VALUES (?)");
-            $stmt->execute([$userId]);
-        } catch (Exception $ex) {
-            // Bỏ qua nếu lỗi bảng phụ
-        }
+        $stmt->execute([$username, $plain_pass, $email, $fullname, $phone]);
+
+        $userId = $pdo->lastInsertId();
+
+        $stmt = $pdo->prepare("INSERT INTO customers (user_id) VALUES (?)");
+        $stmt->execute([$userId]);
 
         $pdo->commit();
-        echo json_encode(['status' => 'ok', 'message' => 'Đăng ký thành công!']);
+
+        echo json_encode(['status' => 'ok', 'message' => 'Đăng ký thành công! Vui lòng đăng nhập.']);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => 'Lỗi hệ thống: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+// --- SR-1.2: ĐĂNG NHẬP (Đã nâng cấp thông báo chi tiết) ---
+    // --- SR-1.2: ĐĂNG NHẬP ---
+if ($action === 'login') {
+    $login    = trim($_POST['login'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    // 1. Kiểm tra rỗng (Tách riêng thông báo)
+    if (empty($login)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập tên tài khoản.']); exit;
+    }
+
+    if (empty($password)) {
+        echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập mật khẩu.']); exit;
+    }
+
+    // 2. Validate định dạng Username (Tránh check nhầm Email)
+    // Logic: Nếu chuỗi KHÔNG chứa ký tự '@' -> Coi là Username -> Check ký tự đặc biệt
+    if (strpos($login, '@') === false) {
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $login)) {
+            echo json_encode(['status' => 'error', 'message' => 'Tên đăng nhập không chứa ký tự đặc biệt.']); exit;
+        }
+    }
+
+    // 3. Tìm user trong Database
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE (email = ? OR username = ?) LIMIT 1");
+    $stmt->execute([$login, $login]);
+    $user = $stmt->fetch();
+
+    // 4. Kiểm tra sự tồn tại của tài khoản
+    if (!$user) {
+        // Đây là thông báo "Tên đăng nhập không hợp lệ" như bạn yêu cầu
+        echo json_encode(['status' => 'error', 'message' => 'Tên đăng nhập không hợp lệ (Tài khoản không tồn tại).']);
         exit;
     }
 
-// --- SR-1.2: ĐĂNG NHẬP (Đã nâng cấp thông báo chi tiết) ---
-    if ($action === 'login') {
-        $login    = trim($_POST['login'] ?? '');
-        $password = $_POST['password'] ?? '';
-
-        if (empty($login) || empty($password)) {
-            echo json_encode(['status' => 'error', 'message' => 'Vui lòng nhập đầy đủ thông tin.']); exit;
-        }
-
-        // 1. Tìm user trước (Chưa kiểm tra pass vội)
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE (email = ? OR username = ?) LIMIT 1");
-        $stmt->execute([$login, $login]);
-        $user = $stmt->fetch();
-
-        // 2. Logic kiểm tra chi tiết
-        if (!$user) {
-            // Trường hợp A: Sai tài khoản
-            echo json_encode(['status' => 'error', 'message' => '❌ Tài khoản hoặc email này không tồn tại.']);
-            exit;
-        }
-
-        if ($user['password'] !== $password) { // Nếu đã mã hóa thì dùng: !password_verify($password, $user['password'])
-            // Trường hợp B: Sai mật khẩu
-            echo json_encode(['status' => 'error', 'message' => '❌ Mật khẩu không chính xác.']);
-            exit;
-        }
+    // 5. Kiểm tra mật khẩu
+    // Lưu ý: Vẫn đang dùng so sánh chuỗi thường (plain text) theo code Đăng ký trước đó
+    if ($user['password'] !== $password) { 
+        echo json_encode(['status' => 'error', 'message' => 'Mật khẩu không chính xác.']); 
+        exit;
+    }
+    
+    // Kiểm tra trạng thái tài khoản (Optional - nên có)
+    if ($user['status'] !== 'active') {
+        echo json_encode(['status' => 'error', 'message' => 'Tài khoản của bạn đang bị khóa.']); 
+        exit;
+    }
 
         // Trường hợp C: Đăng nhập thành công
         session_regenerate_id(true);

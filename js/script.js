@@ -57,8 +57,9 @@ document.addEventListener("DOMContentLoaded", function() {
 function showMessage(msg, isError = true) {
   const el = document.getElementById('msg');
   if (!el) return;
-  el.style.color = isError ? '#e74c3c' : '#2ecc71';
+  el.style.color = isError ? 'red' : 'green'; // Hoặc class CSS tương ứng
   el.textContent = msg;
+  el.style.display = 'block'; // Đảm bảo hiện lên
 }
 
 // Hàm gửi dữ liệu POST dạng Form
@@ -71,7 +72,7 @@ function postData(url, data) {
   }).then(r => r.json());
 }
 
-// --- SR-1.1: REGISTER (Cập nhật lấy Username) ---
+// --- SR-1.1: REGISTER ---
 function registerUser() {
   const username = document.getElementById('username').value.trim();
   const fullname = document.getElementById('fullname').value.trim();
@@ -80,19 +81,17 @@ function registerUser() {
   const password = document.getElementById('password').value;
   const confirm = document.getElementById('confirm_password').value;
 
-  if (!username || !fullname || !email || !phone || !password || !confirm) {
-    showMessage('Vui lòng điền đầy đủ thông tin.'); return;
-  }
-
-  // Gửi username lên API
+  // Gửi thẳng lên API
   postData('api.php?action=register', {
     username, fullname, email, phone, password, confirm_password: confirm
   }).then(j => {
     if (j.status === 'ok') {
       showMessage(j.message, false);
-      // Chuyển sang login sau 1.5s
       setTimeout(() => window.location = 'login.php', 1500);
-    } else showMessage(j.message);
+    } else {
+      // Hiển thị lỗi cụ thể từ PHP (VD: "Vui lòng nhập email")
+      showMessage(j.message, true);
+    }
   }).catch(e => showMessage('Lỗi kết nối server.'));
 }
 
@@ -101,27 +100,15 @@ function loginUser() {
   const login = document.getElementById('login').value.trim();
   const password = document.getElementById('loginPassword').value;
   
-  // Xử lý Checkbox Ghi nhớ (Tùy chọn visual, chưa lưu cookie thực tế trong bài này)
-  const remember = document.getElementById('remember').checked; 
-
-  if (!login || !password) { 
-      showMessage('Vui lòng nhập thông tin đăng nhập.'); return;
-  }
-
+  // Xóa đoạn kiểm tra rỗng tại đây để PHP xử lý
   postData('api.php?action=login', {login, password}).then(j => {
     if (j.status === 'ok') {
       showMessage('Đăng nhập thành công...', false);
-      // Điều hướng theo dữ liệu Role trả về từ API
       if (j.data) window.location = j.data;
-    } else showMessage(j.message);
+    } else {
+      showMessage(j.message);
+    }
   }).catch(e => showMessage('Lỗi kết nối server.'));
-}
-
-// Toggle hiển thị mật khẩu
-function togglePassword(inputId) {
-  const el = document.getElementById(inputId);
-  if (!el) return;
-  el.type = el.type === 'password' ? 'text' : 'password';
 }
 
 // --- SR-1.3: REQUEST RESET ---
